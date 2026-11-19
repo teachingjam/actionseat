@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>액션 자리뽑기 · 발표 화면</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/stage.css">
+</head>
+<body class="stage-body">
+<div class="aurora"><div class="grid"></div></div>
+<div id="toast-wrap"></div>
+
+<!-- 대기 -->
+<section class="sv" id="sv-idle">
+  <div class="idle-wrap">
+    <img class="ico bob" src="assets/icons/swords.png" alt="" style="width:160px;height:160px">
+    <h1 class="stage-logo"><span class="l1">액션</span><span class="grad-text">자리뽑기</span></h1>
+    <p class="muted" style="font-size:22px">곧 모험이 시작됩니다…</p>
+  </div>
+</section>
+
+<!-- 대기실 -->
+<section class="sv hidden" id="sv-lobby">
+  <div class="lobby-grid">
+    <div class="join-card panel beam">
+      <div class="jc-label"><img class="ico" src="assets/icons/phone.png" alt="" style="width:40px;height:40px">휴대폰으로 참여하세요!</div>
+      <div class="jc-code grad-text" id="l-code"></div>
+      <div id="qr"></div>
+      <div class="jc-url" id="l-url"></div>
+    </div>
+    <div class="lobby-right">
+      <div class="lobby-head">
+        <img class="ico" src="assets/icons/group.png" alt="" style="width:64px;height:64px">
+        <div><div class="lh-count"><span id="l-count" class="display">0</span>명 입장</div>
+        <div class="muted" id="l-sub"></div></div>
+      </div>
+      <div class="player-grid" id="l-players"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 모험 진행 -->
+<section class="sv hidden" id="sv-quest">
+  <div class="quest-board">
+    <div class="qb-head">
+      <img class="ico bob" src="assets/icons/map.png" alt="" style="width:80px;height:80px">
+      <div class="grow">
+        <h1 class="qb-title">모험 진행 중!</h1>
+        <div class="qb-bar"><i id="q-all"></i></div>
+      </div>
+      <div class="qb-done"><img class="ico" src="assets/icons/trophy.png" alt="" style="width:56px;height:56px"><span class="display" id="q-done">0</span><small>/<span id="q-total">0</span></small></div>
+    </div>
+    <div class="player-grid" id="q-players"></div>
+  </div>
+</section>
+
+<!-- 종목 선택 -->
+<section class="sv hidden" id="sv-select">
+  <div class="select-wrap">
+    <img class="ico bob" src="assets/icons/trophy.png" alt="" style="width:130px;height:130px">
+    <h1 class="sel-title grad-text">자리를 건 최종 결전!</h1>
+    <p class="muted" style="font-size:22px">등수대로 자리가 정해집니다. 종목은…?</p>
+    <div class="mode-cards">
+      <div class="mode-card" data-mode="race">
+        <div class="mc-icons"><img src="assets/icons/shoe.png" alt=""><img src="assets/icons/hurdle.png" alt=""><img src="assets/icons/flag.png" alt=""></div>
+        <h3>3D 육상 대운동회</h3><p>허들, 바나나, 진흙탕, 부스터! 엎치락뒤치락 트랙 레이스</p>
+      </div>
+      <div class="mode-card" data-mode="battle">
+        <div class="mc-icons"><img src="assets/fx/fx_fireball.png" alt=""><img src="assets/icons/swords.png" alt=""><img src="assets/fx/fx_lightning.png" alt=""></div>
+        <h3>아레나 배틀로얄</h3><p>몬스터 떼와 화려한 스킬! 최후의 1인을 가려라</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 결승전 -->
+<section class="sv hidden" id="sv-finale"><div id="finale-root"></div></section>
+
+<!-- 결과 -->
+<section class="sv hidden" id="sv-result">
+  <div class="result-stage">
+    <div class="rs-left">
+      <h1 class="rs-title grad-text">새 자리 발표!</h1>
+      <div class="classroom" id="r-classroom"></div>
+    </div>
+    <div class="rs-right">
+      <div class="podium" id="podium"></div>
+      <div class="rank-list" id="r-ranks"></div>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/gamedata.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/fxkit.js"></script>
+<script src="js/race3d.js"></script>
+<script src="js/battle2d.js"></script>
+<script src="js/stage.js"></script>
+</body>
+</html>
