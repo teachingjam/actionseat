@@ -223,9 +223,14 @@ select option { color: #222; }
 
 /* =================== 교사 콘솔 =================== */
 .t-top { display: flex; align-items: center; gap: 14px; padding: 12px 22px; background: rgba(8,6,25,.7); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); }
-.t-logo { font-family: var(--display); font-size: 24px; display: flex; align-items: center; gap: 8px; }
+.t-logo { font-family: var(--display); font-size: 24px; display: flex; align-items: center; gap: 8px; white-space: nowrap; flex: none; }
 .t-logo span { color: var(--gold); }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.t-tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.t-tools .btn { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.reset-list { display: grid; gap: 6px; text-align: left; margin: 12px 0 4px; }
+.reset-list label { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.06); font-family: 'Jua'; font-size: 16px; cursor: pointer; }
+.reset-list label small { color: var(--muted); font-family: 'Gowun Dodum'; margin-left: auto; font-size: 13px; }
 .tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--muted); font-family: 'Jua'; font-size: 16px; cursor: pointer; transition: all .2s; }
 .tab:hover { color: var(--text); border-color: rgba(255,255,255,.3); }
 .tab.active { background: linear-gradient(180deg, #fff0a8, var(--gold)); color: #3a2500; border-color: transparent; box-shadow: 0 4px 0 #a24f00; }
@@ -416,6 +421,68 @@ select option { color: #222; }
 .uses-obj b { font-family: var(--display); font-size: 30px; color: var(--gold); }
 .uses-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; min-height: 40px; }
 .idea { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid var(--line); font-family: 'Jua'; font-size: 15px; }
+
+.stars { color: var(--gold); letter-spacing: 1px; text-shadow: 0 0 8px rgba(255,207,74,.6); font-size: 15px; }
+.stars em { font-style: normal; color: rgba(255,255,255,.18); text-shadow: none; }
+
+/* 게임 설명 슬라이드 */
+.intro-top { display: flex; justify-content: space-between; align-items: center; margin: 4px 56px 10px 0; }
+.intro-count { font-size: 17px; color: var(--muted); }
+.intro-stage { overflow: hidden; touch-action: pan-y; }
+.intro-slide { min-height: 520px; display: flex; flex-direction: column; gap: 12px; animation: inRight .35s cubic-bezier(.2,1,.3,1) both; }
+.intro-slide.from-left { animation-name: inLeft; }
+@keyframes inRight { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes inLeft { from { transform: translateX(-40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.intro-nav { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 14px; }
+.intro-nav .btn { padding: 12px 16px; font-size: 18px; }
+.intro-dots { display: flex; justify-content: center; gap: 6px; }
+.intro-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.2); transition: all .2s; }
+.intro-dots i.on { width: 22px; border-radius: 6px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.in-title { font-family: var(--display); font-size: 26px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; text-align: center; }
+.in-text { font-size: 17px; line-height: 1.7; margin: 0; text-align: center; }
+.in-text b, .in-list b, .in-note b { color: var(--gold); }
+.in-hero { position: relative; border-radius: 18px; overflow: hidden; aspect-ratio: 16/9; box-shadow: 0 12px 26px rgba(0,0,0,.4); }
+.in-hero > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.in-hero-t { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, transparent 40%, rgba(10,6,30,.7)); font-family: var(--display); font-size: 40px; }
+.in-runners { position: absolute; left: 0; right: 0; bottom: 4%; display: flex; justify-content: space-around; }
+.in-runners img { width: 22%; animation: bob .5s ease-in-out infinite; filter: drop-shadow(0 6px 6px rgba(0,0,0,.4)); }
+.in-runners img:nth-child(2) { animation-delay: .1s; } .in-runners img:nth-child(3) { animation-delay: .2s; } .in-runners img:nth-child(4) { animation-delay: .3s; }
+.flow { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.flow i { font-style: normal; color: var(--gold); font-size: 10px; flex: none; }
+.fl-step { display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: 'Jua'; font-size: 12px; flex: 1; min-width: 0; text-align: center; white-space: nowrap; }
+.in-classes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.in-classes div { text-align: center; font-family: 'Jua'; font-size: 12px; }
+.in-classes img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: 50% 25%; border-radius: 50%; border: 2px solid rgba(255,255,255,.4); }
+.in-stats { display: grid; gap: 6px; }
+.in-stats div { display: grid; grid-template-columns: 34px 48px 1fr; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.06); }
+.in-stats b { font-family: 'Jua'; font-size: 17px; }
+.in-stats span { font-size: 14px; color: var(--muted); }
+.in-scene { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 16px; }
+.in-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.in-path { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px; border-radius: 14px; background: rgba(255,255,255,.07); border: 1px solid var(--line); }
+.in-path b { font-family: 'Jua'; font-size: 15px; }
+.in-note { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 16px; background: rgba(255,207,74,.12); border: 1px solid rgba(255,207,74,.45); font-size: 15px; line-height: 1.6; }
+.in-note .ico { flex: none; }
+.in-dice { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.in-dice .d20 { margin: 0; width: 100px; height: 100px; font-size: 42px; animation: none; }
+.in-dice-eq { font-family: 'Jua'; font-size: 18px; line-height: 1.6; }
+.in-list { margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; }
+.in-icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.in-icons div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 14px; background: rgba(255,255,255,.06); font-family: 'Jua'; font-size: 13px; }
+.in-podium { display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin: 10px 0; }
+.in-podium > div { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 90px; padding: 10px 4px; border-radius: 14px 14px 4px 4px; background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); font-family: 'Jua'; }
+.in-podium .p1 { padding-bottom: 40px; border: 1px solid rgba(255,207,74,.7); }
+.in-podium .p2 { padding-bottom: 22px; }
+.in-podium b { font-family: var(--display); font-size: 22px; }
+.in-podium span { font-size: 12px; color: var(--muted); }
+.in-plates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 6px 0; }
+.in-plates .pk-plate { padding: 10px 4px; border-radius: 10px; background: linear-gradient(180deg, #fffdf2, #ffe9a8); border: 3px solid #2a1a00; box-shadow: inset 0 0 0 2px #fff, 0 4px 0 rgba(0,0,0,.35); text-align: center; animation: plateRoll .3s ease-in-out infinite; }
+.in-plates .pk-plate:nth-child(2) { animation-delay: .1s; } .in-plates .pk-plate:nth-child(3) { animation-delay: .2s; }
+.in-plates .pk-name { font-family: var(--display); font-size: 22px; color: #2a1a00; }
+.in-bonus { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.in-bonus div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px; border-radius: 14px; background: rgba(255,255,255,.07); font-family: 'Jua'; }
+.in-bonus b { font-size: 18px; }
+.in-bonus span { font-size: 14px; color: var(--gold); }
 
 /* 짝꿍 고르기 (1·2·3등 보상) */
 .pick-panel { margin-top: 52px; }

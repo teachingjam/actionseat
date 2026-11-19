@@ -152,7 +152,10 @@
       if (phase === 'finale' || phase === 'result') return showMsg('이미 진행 중이에요', '게임이 이미 결승전에 들어갔어요. 선생님께 말씀드려 주세요.');
       renderNames(); show('v-name'); return;
     }
-    if (!me.cls) { renderClasses(); show('v-class'); return; }
+    if (!me.cls) {
+      if (!me.introDone) { renderIntro(); show('v-intro'); return; }
+      renderClasses(); show('v-class'); return;
+    }
     if (phase === 'lobby') { renderWait(); show('v-wait'); return; }
     if (phase === 'quest') {
       if (me.done) { renderDone('wait'); show('v-done'); }
@@ -200,6 +203,94 @@
     save();
     S('v_choose');
     route();
+  }
+
+  // ---------- 게임 설명 (한 장씩 넘기기) ----------
+  const flowStep = (ic, t) => `<div class="fl-step">${icon(ic, 44)}<span>${t}</span></div>`;
+  const INTRO = [
+    () => `<div class="in-hero"><img src="assets/title_bg.jpg" alt=""><div class="in-hero-t"><span class="grad-text">액션 자리뽑기</span></div></div>
+      <h2 class="in-title">모험을 떠나 자리를 차지하라!</h2>
+      <p class="in-text">캐릭터를 골라 모험을 하면서 <b>능력치</b>를 키우고, 마지막 <b>최종 결전</b>에서 좋은 등수를 노려 보세요.</p>
+      <div class="flow">${flowStep('shield', '직업 선택')}<i>▶</i>${flowStep('map', `모험 ${TOTAL_STEPS}단계`)}<i>▶</i>${flowStep('swords', '최종 결전')}<i>▶</i>${flowStep('desk', '자리 발표')}</div>`,
+    () => `<h2 class="in-title">${icon('shield', 34)} 직업과 능력치</h2>
+      <div class="in-classes">${Object.values(CLASSES).map(c => `<div><img src="${c.img}" alt=""><small>${c.name}</small></div>`).join('')}</div>
+      <p class="in-text">직업마다 처음 능력치가 달라요. 능력치는 5가지예요.</p>
+      <div class="in-stats">
+        <div>${icon('str', 30)}<b>힘</b><span>배틀, 바위 깨기</span></div>
+        <div>${icon('agi', 30)}<b>민첩</b><span>레이스에서 가장 중요</span></div>
+        <div>${icon('int', 30)}<b>지능</b><span>배틀, 퍼즐 판정</span></div>
+        <div>${icon('luk', 30)}<b>행운</b><span>레이스, 행운 판정</span></div>
+        <div>${icon('vit', 30)}<b>체력</b><span>배틀에서 끝까지 버티기</span></div>
+      </div>`,
+    () => `<h2 class="in-title">${icon('compass', 34)} 갈림길에서 길 고르기</h2>
+      <img class="in-scene" src="assets/scenes/s_crossroads.jpg" alt="">
+      <p class="in-text">모험 중 <b>갈림길</b>이 3번 나와요. 고른 길에 따라 만나는 사건이 달라져서 친구마다 모험이 달라요.</p>
+      <div class="in-paths">${['safe', 'brain', 'market', 'risk'].map(k => { const p = PATHS[k]; return `<div class="in-path">${icon(p.icon, 34)}<b>${p.name}</b><span class="stars">${'★'.repeat(p.risk)}<em>${'★'.repeat(3 - p.risk)}</em></span></div>`; }).join('')}</div>
+      <div class="in-note">${icon('star', 28)}<span><b>별이 많을수록</b> 능력치를 크게 얻을 수 있지만, <b>잃을 수도 있고</b> 더 많은 노력이 필요해요!</span></div>`,
+    () => `<h2 class="in-title">${icon('dice', 34)} 주사위 판정</h2>
+      <div class="in-dice"><div class="d20 ok"><span>17</span></div><div class="in-dice-eq">주사위 17 + 보너스 3<br>= <b>20</b> (목표 12)<br><b class="ok-t">성공!</b></div></div>
+      <p class="in-text">선택지에 <span class="ctag">${icon('str', 18)}힘 판정 ★★</span> 이 붙어 있으면 주사위를 굴려요.</p>
+      <ul class="in-list">
+        <li><b>주사위(1~20) + 능력치 보너스</b>가 목표보다 크거나 같으면 성공!</li>
+        <li>별이 많을수록 목표 숫자가 높아요(어려워요).</li>
+        <li><b class="crit-t">20</b>이 나오면 대성공, <b class="bad-t">1</b>이 나오면 대실패!</li>
+        <li>실패하면 능력치가 깎이기도 해요.</li>
+      </ul>`,
+    () => `<h2 class="in-title">${icon('coin', 34)} 골드와 퍼즐</h2>
+      <div class="in-note">${icon('coin', 40)}<span>사건에서 <b>골드</b>를 모아 상점에서 아이템을 사거나 도박을 할 수 있어요. 남은 골드는 마지막에 <b>행운</b>으로 바뀌어요.</span></div>
+      <div class="in-icons">
+        <div>${icon('puzzle', 40)}<small>10 만들기</small></div><div>${icon('scroll', 40)}<small>초성 퀴즈</small></div><div>${icon('bulb', 40)}<small>창의력</small></div>
+        <div>${icon('card', 40)}<small>짝 맞추기</small></div><div>${icon('str', 40)}<small>바위 깨기</small></div><div>${icon('tap', 40)}<small>슬라임 잡기</small></div>
+      </div>
+      <p class="in-text">퍼즐과 미니게임은 <b>시간을 들여 잘 풀수록</b> 능력치가 많이 올라요. 서두르지 말고 끝까지 도전해 보세요!</p>`,
+    () => `<h2 class="in-title">${icon('swords', 34)} 최종 결전</h2>
+      <div class="in-hero sm"><img src="assets/arena_bg.jpg" alt=""><div class="in-runners">${['warrior', 'mage', 'archer', 'thief'].map(k => `<img src="${CLASSES[k].run}" alt="">`).join('')}</div></div>
+      <p class="in-text">모두 모험을 마치면 <b>선생님 화면</b>에서 <b>레이스</b> 또는 <b>배틀로얄</b>이 펼쳐져요.</p>
+      <ul class="in-list">
+        <li>내가 키운 <b>능력치를 바탕으로 등수</b>가 정해져요. (운도 조금 작용해요!)</li>
+        <li>레이스는 <b>민첩·행운</b>, 배틀은 <b>힘·지능·체력</b>이 특히 중요해요.</li>
+      </ul>`,
+    () => `<h2 class="in-title">${icon('desk', 34)} 등수대로 자리 발표</h2>
+      <div class="in-podium"><div class="p2">${icon('silver', 50)}<b>2등</b><span>2번 자리</span></div><div class="p1">${icon('trophy', 60)}<b>1등</b><span>1번 자리</span></div><div class="p3">${icon('bronze', 50)}<b>3등</b><span>3번 자리</span></div></div>
+      <p class="in-text">등수가 높을수록 먼저 자리를 받아요. <b>1등은 1번 자리</b>, 2등은 2번 자리…<br>자리 번호는 선생님이 미리 정해 둔 순서예요. 몇 번이 어느 자리인지는 결과가 나올 때 알 수 있어요!</p>`,
+    () => `<h2 class="in-title">${icon('heart', 34)} 1·2·3등 특별 보상</h2>
+      <div class="in-plates"><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div></div>
+      <p class="in-text">1~3등은 <b>짝꿍을 고를 수 있어요!</b> 무작위로 뽑힌 후보가 번호판처럼 공개되고, 그중 한 명을 골라요.</p>
+      <div class="in-bonus"><div>${icon('trophy', 36)}<b>1등</b><span>후보 5명</span></div><div>${icon('silver', 36)}<b>2등</b><span>후보 4명</span></div><div>${icon('bronze', 36)}<b>3등</b><span>후보 3명</span></div></div>
+      <p class="in-text muted">고른 친구는 내 짝 자리에 앉아요. 자, 이제 직업을 골라 볼까요?</p>`
+  ];
+  let introIdx = 0;
+  function renderIntro(dir) {
+    introIdx = Math.max(0, Math.min(INTRO.length - 1, introIdx));
+    const st = $('#intro-stage');
+    st.innerHTML = `<div class="intro-slide panel ${dir === 'back' ? 'from-left' : 'from-right'}">${INTRO[introIdx]()}</div>`;
+    $('#intro-count').textContent = `게임 설명 ${introIdx + 1} / ${INTRO.length}`;
+    $('#intro-dots').innerHTML = INTRO.map((_, i) => `<i class="${i === introIdx ? 'on' : ''}"></i>`).join('');
+    $('#intro-prev').style.visibility = introIdx ? 'visible' : 'hidden';
+    const last = introIdx === INTRO.length - 1;
+    $('#intro-next').innerHTML = last ? '직업 고르기 ▶' : '다음 ▶';
+    $('#intro-next').classList.toggle('green', last);
+    $('#intro-skip').style.visibility = last ? 'hidden' : 'visible';
+    window.scrollTo(0, 0);
+  }
+  function finishIntro() { me.introDone = true; save(); try { localStorage.setItem('action-seat-intro-seen', '1'); } catch (e) {} S('confirm'); route(); }
+  // 전에 설명을 본 적 있는 학생에게는 건너뛰기 버튼을 눈에 띄게
+  try { if (localStorage.getItem('action-seat-intro-seen')) { $('#intro-skip').className = 'btn small'; $('#intro-skip').textContent = '이미 알아요! 건너뛰기 ▶▶'; } } catch (e) {}
+  $('#intro-next').addEventListener('click', () => { if (introIdx >= INTRO.length - 1) return finishIntro(); introIdx++; S('page', { vol: .6 }); renderIntro(); });
+  $('#intro-prev').addEventListener('click', () => { introIdx--; S('page', { vol: .6, rate: .9 }); renderIntro('back'); });
+  $('#intro-skip').addEventListener('click', finishIntro);
+  $('#intro-again').addEventListener('click', () => { me.introDone = false; introIdx = 0; save(); route(); });
+  { // 좌우로 밀어서 넘기기
+    let sx = null;
+    const stg = $('#intro-stage');
+    stg.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    stg.addEventListener('touchend', e => {
+      if (sx == null) return;
+      const dx = e.changedTouches[0].clientX - sx; sx = null;
+      if (Math.abs(dx) < 50) return;
+      if (dx < 0 && introIdx < INTRO.length - 1) $('#intro-next').click();
+      else if (dx > 0 && introIdx > 0) $('#intro-prev').click();
+    });
   }
 
   // ---------- 직업 ----------
@@ -419,7 +510,7 @@
         const p = PATHS[k];
         return `<button class="path-card" data-k="${k}" style="animation-delay:${i * 90}ms">
           ${icon(p.icon, 54)}<b>${p.name}</b><small>${p.desc}</small>
-          <span class="risk">위험도 ${'<i></i>'.repeat(p.risk)}${'<i class="off"></i>'.repeat(3 - p.risk)}</span></button>`;
+          <span class="risk">위험도·보상 <span class="stars">${'★'.repeat(p.risk)}<em>${'★'.repeat(3 - p.risk)}</em></span></span></button>`;
       }).join('')}</div>`;
       $$('.path-card', box).forEach(b => b.addEventListener('click', () => {
         $$('.path-card', box).forEach(x => { x.disabled = true; if (x !== b) x.classList.add('dim'); });

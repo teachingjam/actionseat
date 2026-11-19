@@ -301,7 +301,7 @@
   // ================= 발표 화면 통신 =================
   const stageBC = new BroadcastChannel('action-seat-stage-v1');
   let finaleRun = null; // {runId, mode, players}
-  function joinUrl() { return S.room ? new URL('index.html?code=' + S.room.code, location.href).href : ''; }
+  function joinUrl() { return S.room ? new URL('play.html?code=' + S.room.code, location.href).href : ''; }
   function stageState() {
     const R = S.room;
     if (!R) return { t: 'state', phase: 'idle' };
@@ -793,6 +793,40 @@
     setTimeout(closeRoom, 400);
     toast('저장했어요!', 'chest');
   }
+
+  // ================= 저장된 정보 초기화 (여러 반을 번갈아 할 때) =================
+  $('#btn-reset').addEventListener('click', async () => {
+    const items = [
+      ['roster', '학생 명단', `${S.roster.length}명`, true],
+      ['rules', '비밀 조건', `${S.rules.length}개`, true],
+      ['history', '지난 결과 (지난번 짝 기록)', `${S.history.length}개`, true],
+      ['room', '진행 중인 방', S.room ? `${S.room.code}` : '없음', true],
+      ['layout', '교실 배치·자리 번호', `책상 ${S.layout.desks.length}개`, false],
+      ['opts', '옵션 (떨어뜨리기 범위 등)', '', false]
+    ];
+    const html = `다른 반을 시작할 때 지울 항목을 고르세요.<br><small class="muted">지운 정보는 되돌릴 수 없어요.</small>
+      <div class="reset-list">${items.map(([k, t, n, on]) => `<label><input type="checkbox" data-rk="${k}" ${on ? 'checked' : ''}> ${t}<small>${esc(n)}</small></label>`).join('')}</div>`;
+    const ok = await UI.confirm(html, { icon: 'gear', title: '저장된 정보 초기화', ok: '선택한 항목 지우기', danger: true });
+    const picked = new Set($$('.reset-list input:checked').map(i => i.dataset.rk));
+    if (!ok || !picked.size) return;
+    if (picked.has('room') && S.room) {
+      try { Net.send('closed', {}); } catch (e) {}
+      S.room = null; finaleRun = null;
+      if (inStage()) exitStage();
+      pushStage(true);
+    }
+    if (picked.has('roster')) S.roster = [];
+    if (picked.has('rules')) S.rules = [];
+    if (picked.has('history')) S.history = [];
+    if (picked.has('layout')) S.layout = presetLayout('pair');
+    if (picked.has('opts')) S.opts = Object.assign({}, defaults.opts);
+    save();
+    try { localStorage.removeItem('action-seat-student'); } catch (e) {} // 이 PC에서 학생 화면을 시험해 본 기록
+    const cur = ($$('.tab.active')[0] || {}).dataset;
+    showTab(cur && cur.tab ? cur.tab : 'game');
+    const SHORT = { roster: '학생 명단', rules: '비밀 조건', history: '지난 결과', room: '진행 중인 방', layout: '교실 배치', opts: '옵션' };
+    toast(`초기화 완료: ${[...picked].map(k => SHORT[k]).join(', ')}`, 'gear');
+  });
 
   // ================= 시작 =================
   renderGame();

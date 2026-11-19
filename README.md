@@ -6,8 +6,8 @@
 ## 화면 구성
 | 화면 | 파일 | 누가 보나 |
 |---|---|---|
-| 학생 화면 | `public/index.html` | 학생 휴대폰 (참여 코드 → 이름 → 직업 → 퀘스트 20개 → 결과) |
-| 교사 콘솔 | `public/teacher.html` | 선생님만 (교실 배치·명단·비밀 조건·진행 버튼) |
+| 교사 콘솔 (메인) | `public/index.html` | 선생님만 (교실 배치·명단·비밀 조건·진행 버튼·초기화) |
+| 학생 화면 | `public/play.html` | 학생 휴대폰 (참여 코드 → 이름 → 게임 설명 → 직업 → 모험 17단계 → 결과) |
 | 발표 화면 | `public/stage.html` | 프로젝터 (대기실·진행판·결승전·자리 발표). **메뉴/비밀 정보가 없음** |
 
 - 방을 만들면 교사 콘솔 위에 발표 화면이 전체 화면으로 덮입니다. 아래쪽에 마우스를 가져가면 진행 버튼(도크)이 나타납니다.
@@ -62,13 +62,16 @@ serve.ps1               Node 없이 쓰는 로컬 미리보기 서버
 ```powershell
 powershell -ExecutionPolicy Bypass -File serve.ps1
 ```
-→ http://localhost:8080/teacher.html
+→ http://localhost:8080 (교사) / http://localhost:8080/play.html (학생)
 
 ## 배포 (Vercel)
-- 교사: https://action-seat.vercel.app/teacher.html
-- 학생: https://action-seat.vercel.app (방 화면의 QR/코드로 접속)
+- 교사: https://action-seat.vercel.app
+- 학생: https://action-seat.vercel.app/play.html (방 화면의 QR/코드로 접속)
 
 수정 후 다시 배포하려면 (사용자 환경변수 `VERCEL_TOKEN` 필요):
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\deploy-vercel.ps1
 ```
+
+## 여러 반을 번갈아 할 때
+교사 화면 오른쪽 위 **초기화**에서 학생 명단·비밀 조건·지난 결과·진행 중인 방(기본 선택)과 교실 배치·옵션 중 지울 항목을 골라 지웁니다.
