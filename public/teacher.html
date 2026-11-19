@@ -114,8 +114,12 @@
             <button class="btn small" id="ly-manual">직접 매기기</button>
           </div>
           <p id="ly-manual-info" class="help hidden" style="color:var(--gold);font-family:Jua;font-size:16px"></p>
-          <h3 style="margin-top:22px">짝(옆자리) 기준</h3>
-          <p class="help">바로 옆 칸에 붙어 있는 책상끼리를 <b>짝</b>으로 봅니다. 통로(빈칸)를 사이에 두면 짝이 아니에요.</p>
+          <h3 style="margin-top:22px">짝 방향</h3>
+          <div class="row">
+            <button class="btn small" id="ly-pair-h">좌우가 짝</button>
+            <button class="btn small" id="ly-pair-v">앞뒤가 짝 (모둠형)</button>
+          </div>
+          <p class="help" id="ly-pair-help"></p>
         </div>
       </div>
     </section>
@@ -170,6 +174,8 @@
           <label class="row"><input type="checkbox" id="opt-last"> 지난번 짝과 다시 짝 되지 않기</label>
           <p class="help" id="opt-last-info"></p>
           <label class="row"><input type="checkbox" id="opt-absent"> 접속 안 한 명단 학생도 '대리 캐릭터'로 자리 배정</label>
+          <label class="row"><input type="checkbox" id="opt-pick"> 1·2·3등 보상: 무작위 후보(5·4·3명) 중에서 짝꿍 고르기</label>
+          <p class="help">떨어뜨리기·짝 만들기·자리 고정·앞/뒷자리 조건이 걸린 학생과 지난번 짝은 후보에 몰래 빠집니다. 짝 만들기 조건이 걸린 1~3등은 고르기를 건너뜁니다.</p>
           <hr style="border-color:var(--line)">
           <button class="btn secondary" id="btn-sim" style="width:100%">미리 시뮬레이션</button>
           <p class="help">무작위 능력치로 배정을 한 번 돌려 조건이 모두 지켜지는지 확인해요.</p>

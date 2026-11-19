@@ -78,6 +78,16 @@
       case 'claimResult': return onClaim(m);
       case 'room': return onRoom(m);
       case 'result': return onResult(m);
+      case 'pickStart':
+        if (me.pick && me.pick.id === m.pickId && me.pick.done) return;
+        if (!me.pick || me.pick.id !== m.pickId) { me.pick = { id: m.pickId, rank: m.rank, cands: m.cands, done: false, revealed: false }; save(); }
+        phase = 'pick';
+        return route();
+      case 'pickAck':
+        me.pick = Object.assign(me.pick || {}, { done: true, name: m.name });
+        save();
+        if (phase === 'pick') route();
+        return;
       case 'closed':
         store(KEY, null);
         if (me.result) return;
@@ -121,7 +131,7 @@
     if ($('#v-wait:not(.hidden)')) { renderMates(); if (players.length > before) S('pluck', { vary: .3 }); }
     if (prev !== phase) {
       if (phase === 'quest') S('j_chapter');
-      if (phase === 'finale') S('v_prepare');
+      if (phase === 'finale') { S('v_prepare'); if (me.pick) { me.pick = null; save(); } }
       route();
     }
   }
@@ -150,6 +160,12 @@
       return;
     }
     if (phase === 'finale') { stopTimers(); renderDone('finale'); show('v-done'); return; }
+    if (phase === 'pick') {
+      stopTimers();
+      if (me.pick && !me.pick.done) { renderPick(); show('v-pick'); }
+      else { renderDone('pick'); show('v-done'); }
+      return;
+    }
     if (phase === 'result') {
       stopTimers();
       if (me.result) renderResult(); else { renderDone('finale'); show('v-done'); }
@@ -1042,7 +1058,61 @@
     $('#done-stats').innerHTML = statBars(me.stats);
     $('#done-msg').innerHTML = mode === 'finale'
       ? `${icon('megaphone', 80, 'bob')}<p style="font-family:Jua;font-size:26px" class="shimmer">선생님 화면을 보세요!</p><p class="muted">지금 자리를 건 대결이 펼쳐지고 있어요!</p>`
-      : `<div class="spinner"></div><p style="font-family:Jua;font-size:20px">다른 친구들의 모험을 기다리는 중…</p>`;
+      : mode === 'pick'
+        ? (me.pick && me.pick.done
+          ? `${icon('heart', 80, 'bob')}<p style="font-family:Jua;font-size:24px">짝꿍으로 <b style="color:var(--gold)">${esc(me.pick.name)}</b>을(를) 골랐어요!</p><p class="muted">다른 친구들이 고르면 곧 자리가 발표돼요.</p>`
+          : `${icon('trophy', 80, 'bob')}<p style="font-family:Jua;font-size:24px" class="shimmer">1·2·3등이 짝꿍을 고르는 중!</p><p class="muted">곧 최종 자리가 발표돼요. 선생님 화면을 보세요!</p>`)
+        : `<div class="spinner"></div><p style="font-family:Jua;font-size:20px">다른 친구들의 모험을 기다리는 중…</p>`;
+  }
+
+  // ---------- 1·2·3등 보상: 짝꿍 고르기 (번호판 뽑기처럼) ----------
+  function renderPick() {
+    const pk = me.pick;
+    const medal = pk.rank === 1 ? 'trophy' : pk.rank === 2 ? 'silver' : 'bronze';
+    $('#pick-head').innerHTML = `${icon(medal, 64, 'pop-in')}<div><div class="pick-rank grad-text">${pk.rank}등 보상!</div><div class="pick-sub">무작위 후보 <b>${pk.cands.length}명</b> 중에서 짝꿍을 골라요</div></div>`;
+    const box = $('#pick-body');
+    const names = pk.cands.map(c => c.name);
+    box.innerHTML = `<div class="pick-grid">${pk.cands.map((c, i) => `
+      <button class="pick-card ${pk.revealed ? 'shown' : ''}" data-i="${i}" ${pk.revealed ? '' : 'disabled'} data-nosfx>
+        <div class="pk-plate"><span class="pk-name">${pk.revealed ? esc(c.name) : '?'}</span></div>
+        <img class="pk-img" src="${c.cls && CLASSES[c.cls] ? CLASSES[c.cls].img : 'assets/icons/thought.png'}" alt="">
+      </button>`).join('')}</div>
+      ${pk.revealed ? '<p class="center muted" style="margin-top:12px">한 명을 눌러 짝꿍으로 정하세요. 한 번 고르면 바꿀 수 없어요!</p>'
+        : `<button class="btn big" id="pick-roll" style="width:100%;margin-top:16px">${icon('dice', 32)} 후보 공개!</button>`}`;
+    if (!pk.revealed) {
+      S('j_cute');
+      $('#pick-roll', box).addEventListener('click', e => {
+        e.currentTarget.disabled = true;
+        S('shuffle');
+        const cards = $$('.pick-card', box);
+        cards.forEach((card, i) => {
+          const nm = $('.pk-name', card);
+          card.classList.add('rolling');
+          const iv = every(() => { nm.textContent = names[rnd(names.length)]; S('tick', { vol: .25, gap: 0 }); }, 70);
+          later(() => {
+            clearInterval(iv); timers.delete(iv);
+            nm.textContent = pk.cands[i].name;
+            card.classList.remove('rolling'); card.classList.add('shown');
+            S('card'); S('pop', { rate: 1 + i * .1, delay: .05 });
+            if (i === cards.length - 1) later(() => { pk.revealed = true; save(); S('j_good', { vol: .6 }); renderPick(); }, 500);
+          }, 700 + i * 450);
+        });
+      });
+      return;
+    }
+    $$('.pick-card', box).forEach(b => b.addEventListener('click', async () => {
+      const c = pk.cands[+b.dataset.i];
+      S('select');
+      $$('.pick-card', box).forEach(x => x.classList.toggle('sel', x === b));
+      const ok = await UI.confirm(`<b>${esc(c.name)}</b>을(를) 짝꿍으로 고를까요?<br>한 번 고르면 바꿀 수 없어요!`, { icon: 'heart', ok: '이 친구로!' });
+      if (!ok) { b.classList.remove('sel'); return; }
+      S('j_win');
+      $$('.pick-card', box).forEach(x => { x.disabled = true; if (x !== b) x.classList.add('dim'); });
+      Net.send('pickChoice', { token: me.token, choice: c.id });
+      // 응답이 늦으면 다시 보냄
+      let tries = 0;
+      const iv = every(() => { if ((me.pick && me.pick.done) || ++tries > 4) { clearInterval(iv); return; } Net.send('pickChoice', { token: me.token, choice: c.id }); }, 2500);
+    }));
   }
 
   // ---------- 결과 ----------
@@ -1062,7 +1132,7 @@
     $('#res-name').textContent = me.name;
     $('#res-rank').textContent = `${rk}등`;
     $('#res-seat').innerHTML = `${icon('desk', 40)} 내 자리 <span class="display" style="color:var(--gold);font-size:40px">${me.result.seat}</span>번`;
-    $('#res-sub').textContent = rk === 1 ? '전설의 용사! 축하해요!' : '멋진 모험이었어요! 새 자리에서도 화이팅!';
+    $('#res-sub').textContent = (me.pick && me.pick.done && me.pick.name ? `짝꿍: ${me.pick.name} · ` : '') + (rk === 1 ? '전설의 용사! 축하해요!' : '멋진 모험이었어요! 새 자리에서도 화이팅!');
     show('v-result');
     S(rk <= 3 ? 'j_win' : 'j_good');
   }

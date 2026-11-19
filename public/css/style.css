@@ -245,6 +245,10 @@ select option { color: #222; }
 .cell:hover { border-color: rgba(255,255,255,.4); transform: translateY(-2px); }
 .cell.desk { border: 0; background: linear-gradient(180deg, #f2c98a 0%, #d9a35d 60%, #b98443 100%); color: #4a2e0c; box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 4px 0 #7e5b2c, 0 8px 12px rgba(0,0,0,.3); }
 .layout-grid .cell { width: auto; min-width: 0; }
+/* 짝 연결선 */
+.layout-grid .cell.link-r::after, .layout-grid .cell.link-d::after { content: ''; position: absolute; background: var(--gold); border-radius: 3px; box-shadow: 0 0 8px var(--gold); pointer-events: none; z-index: 1; }
+.layout-grid .cell.link-r::after { right: -9px; top: 50%; width: 11px; height: 6px; transform: translateY(-50%); }
+.layout-grid .cell.link-d::after { bottom: -9px; left: 50%; width: 6px; height: 11px; transform: translateX(-50%); }
 .cell.desk.ordering-done { background: linear-gradient(180deg, #fff0a8, var(--gold)); }
 .cell.desk.flash { animation: popIn .45s both; }
 .seat-map .cell { width: auto; min-width: 0; height: 84px; cursor: default; }
@@ -412,6 +416,25 @@ select option { color: #222; }
 .uses-obj b { font-family: var(--display); font-size: 30px; color: var(--gold); }
 .uses-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; min-height: 40px; }
 .idea { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid var(--line); font-family: 'Jua'; font-size: 15px; }
+
+/* 짝꿍 고르기 (1·2·3등 보상) */
+.pick-panel { margin-top: 52px; }
+.pick-head { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 14px; }
+.pick-rank { font-family: var(--display); font-size: 40px; line-height: 1; }
+.pick-sub { font-family: 'Jua'; font-size: 17px; color: var(--muted); margin-top: 4px; }
+.pick-sub b { color: var(--gold); }
+.pick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.pick-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 18px; border: 2px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.03)); color: var(--text); cursor: pointer; transition: transform .15s, border-color .15s, opacity .3s; animation: popIn .45s both; }
+.pick-card:disabled { cursor: default; }
+.pick-card .pk-plate { width: 100%; padding: 8px 6px; border-radius: 10px; background: linear-gradient(180deg, #fffdf2, #ffe9a8); border: 3px solid #2a1a00; box-shadow: inset 0 0 0 2px #fff, 0 4px 0 rgba(0,0,0,.35); }
+.pick-card .pk-name { display: block; font-family: var(--display); font-size: 24px; color: #2a1a00; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-card .pk-img { width: 74px; height: 74px; border-radius: 50%; object-fit: cover; object-position: 50% 25%; border: 3px solid rgba(255,255,255,.5); filter: brightness(.3) blur(2px); transition: filter .4s; }
+.pick-card.shown .pk-img { filter: none; }
+.pick-card.rolling .pk-plate { animation: plateRoll .12s linear infinite; }
+@keyframes plateRoll { 50% { transform: translateY(-3px) scale(1.02); } }
+.pick-card.shown:not(:disabled):hover { border-color: var(--gold); transform: translateY(-3px); }
+.pick-card.sel { border-color: var(--gold); background: rgba(255,207,74,.2); box-shadow: 0 0 24px rgba(255,207,74,.4); }
+.pick-card.dim { opacity: .35; }
 
 /* 슬라이드 퍼즐 */
 .slide-wrap { display: flex; gap: 10px; align-items: flex-start; justify-content: center; }

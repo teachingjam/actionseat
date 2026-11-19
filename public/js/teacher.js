@@ -6,7 +6,7 @@
 
   const defaults = {
     layout: null, roster: [], rules: [],
-    opts: { avoidScope: 'side', avoidLast: true, includeAbsent: false },
+    opts: { avoidScope: 'side', avoidLast: true, includeAbsent: false, pickReward: true },
     history: [], room: null
   };
   const S = Object.assign({}, defaults, store(KEY) || {});
@@ -37,8 +37,14 @@
     else { rows = 6; cols = 9; on = (r, c) => c <= 1 || c >= cols - 2 || r >= rows - 2; }
     const desks = [];
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (on(r, c)) desks.push(key(r, c));
-    return autoNumber({ rows, cols, desks, numbers: {} });
+    // 모둠형은 책상이 칠판과 수직으로 놓여 앞뒤가 짝인 경우가 많음
+    return autoNumber({ rows, cols, desks, numbers: {}, pairDir: type === 'group' ? 'v' : 'h' });
   }
+  // 두 책상이 짝(바로 붙은 짝 방향 이웃)인지
+  function isPair(L, a, b) {
+    return (L.pairDir === 'v') ? (a.c === b.c && Math.abs(a.r - b.r) === 1) : (a.r === b.r && Math.abs(a.c - b.c) === 1);
+  }
+  const solveOpts = () => ({ avoidScope: S.opts.avoidScope, pairDir: S.layout.pairDir || 'h' });
   function autoNumber(L) {
     const sorted = L.desks.map(parse).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     L.numbers = {};
@@ -63,13 +69,20 @@
     $('#ly-rows').value = L.rows; $('#ly-cols').value = L.cols;
     const room = $('#ly-room');
     let html = `<div class="board">칠판 · 교탁</div><div class="desk-grid layout-grid" style="grid-template-columns:repeat(${L.cols},minmax(30px,64px))">`;
+    const vDir = L.pairDir === 'v';
     for (let r = 0; r < L.rows; r++) for (let c = 0; c < L.cols; c++) {
       const k = key(r, c), isDesk = L.desks.includes(k);
       const num = manual ? manual.numbers[k] : L.numbers[k];
       const delay = flash ? `style="animation-delay:${(r * L.cols + c) * 12}ms"` : '';
-      html += `<div class="cell ${isDesk ? 'desk' : ''} ${isDesk && flash ? 'flash' : ''} ${manual && num ? 'ordering-done' : ''}" data-k="${k}" ${delay}>${isDesk ? `<span>${num || (manual ? '?' : '')}</span>` : ''}</div>`;
+      const link = isDesk && (vDir ? L.desks.includes(key(r + 1, c)) : L.desks.includes(key(r, c + 1))) ? (vDir ? 'link-d' : 'link-r') : '';
+      html += `<div class="cell ${isDesk ? 'desk' : ''} ${link} ${isDesk && flash ? 'flash' : ''} ${manual && num ? 'ordering-done' : ''}" data-k="${k}" ${delay}>${isDesk ? `<span>${num || (manual ? '?' : '')}</span>` : ''}</div>`;
     }
     room.innerHTML = html + '</div>';
+    $('#ly-pair-h').className = `btn small ${vDir ? 'ghost' : ''}`;
+    $('#ly-pair-v').className = `btn small ${vDir ? '' : 'ghost'}`;
+    $('#ly-pair-help').innerHTML = vDir
+      ? '<b>앞뒤로 붙은 책상</b>끼리 짝이에요. 책상이 칠판과 수직으로 놓인 모둠형 배치에 맞아요. (금색 연결선 = 짝)'
+      : '<b>좌우로 붙은 책상</b>끼리 짝이에요. 통로(빈칸)를 사이에 두면 짝이 아니에요. (금색 연결선 = 짝)';
     $$('.cell', room).forEach(cell => cell.addEventListener('click', () => onCellClick(cell.dataset.k)));
     $('#ly-info').textContent = `책상 ${L.desks.length}개 · 명단 ${S.roster.length}명${S.roster.length > L.desks.length ? ' — 책상이 부족해요!' : ''}`;
     const info = $('#ly-manual-info');
@@ -119,6 +132,8 @@
     S.layout = presetLayout(b.dataset.preset); manual = null; save(); renderLayoutEditor(true);
     toast(`'${b.textContent.trim()}' 배치를 적용했어요`, 'desk');
   }));
+  $('#ly-pair-h').addEventListener('click', () => { S.layout.pairDir = 'h'; save(); renderLayoutEditor(); toast('좌우로 붙은 책상을 짝으로 볼게요', 'desk'); });
+  $('#ly-pair-v').addEventListener('click', () => { S.layout.pairDir = 'v'; save(); renderLayoutEditor(); toast('앞뒤로 붙은 책상을 짝으로 볼게요', 'desk'); });
   $('#ly-auto').addEventListener('click', () => { manual = null; autoNumber(S.layout); save(); renderLayoutEditor(true); toast('앞줄 왼쪽부터 번호를 매겼어요', 'star'); });
   $('#ly-random').addEventListener('click', () => { manual = null; randomNumber(S.layout); save(); renderLayoutEditor(true); toast('자리 번호를 무작위로 섞었어요', 'dice'); });
   $('#ly-manual').addEventListener('click', () => {
@@ -198,12 +213,14 @@
     $$('input[name=scope]').forEach(r => { r.checked = r.value === S.opts.avoidScope; });
     $('#opt-last').checked = !!S.opts.avoidLast;
     $('#opt-absent').checked = !!S.opts.includeAbsent;
+    $('#opt-pick').checked = S.opts.pickReward !== false;
     const last = S.history[0];
     $('#opt-last-info').textContent = last ? `최근 결과(${last.date})의 짝 ${last.partners.length}쌍을 피합니다.` : '아직 저장된 지난 결과가 없어요.';
   }
   $$('input[name=scope]').forEach(r => r.addEventListener('change', () => { S.opts.avoidScope = r.value; save(); }));
   $('#opt-last').addEventListener('change', e => { S.opts.avoidLast = e.target.checked; save(); });
   $('#opt-absent').addEventListener('change', e => { S.opts.includeAbsent = e.target.checked; save(); });
+  $('#opt-pick').addEventListener('change', e => { S.opts.pickReward = e.target.checked; save(); });
 
   function buildRules(nameToId) {
     const rules = [];
@@ -234,7 +251,7 @@
     const students = S.roster.map(n => ({ id: n, name: n, score: Solver.scoreFor('race', randomStats().stats) }));
     const nameToId = {}; S.roster.forEach(n => { nameToId[n] = n; });
     let res;
-    try { res = Solver.solve(seats, students, buildRules(nameToId), { avoidScope: S.opts.avoidScope }); }
+    try { res = Solver.solve(seats, students, buildRules(nameToId), solveOpts()); }
     catch (e) { return toast(e.message); }
     $('#sim-box').classList.remove('hidden');
     const shift = res.order.reduce((a, o) => a + Math.abs(o.rank - o.naturalRank), 0) / Math.max(1, res.order.length);
@@ -292,6 +309,7 @@
       t: 'state', phase: R.phase, code: R.code, joinUrl: joinUrl(),
       players: Object.values(R.students).map(s => ({ name: s.name, cls: s.cls, step: s.step || 0, done: !!s.done, title: s.cls ? GameData.titleOf(s.cls, s.traits) : '' })),
       total: GameData.TOTAL_STEPS, rosterCount: S.roster.length,
+      pick: R.pick ? R.pick.pickers.map(p => ({ name: p.name, cls: p.cls, rank: p.rank, n: p.cands.length, done: !!p.choice })) : null,
       layout: S.layout, result: R.result, mode: R.mode, flipped
     };
   }
@@ -355,6 +373,7 @@
     if (ph === 'quest') A.push(['endQuest', 'flag', '결승전으로', '']);
     if (ph === 'finale' && !(finaleRun && finaleRun.running)) { A.push(['race', 'shoe', '달리기', '']); A.push(['battle', 'swords', '배틀로얄', '']); }
     if (ph === 'finale' && finaleRun && finaleRun.running) A.push(['skip', 'stopwatch', '건너뛰기', 'secondary']);
+    if (ph === 'pick') A.push(['pickEnd', 'flag', '짝 고르기 마감', 'green']);
     if (ph === 'result') { A.push(['send', 'phone', '학생에게 전송', 'green']); A.push(['print', 'printer', '인쇄', 'secondary']); A.push(['rematch', 'dice', '다른 종목', 'secondary']); A.push(['finish', 'chest', '저장하고 끝내기', 'danger']); }
     A.push(['sound', SFX.muted ? 'mute' : 'sound', SFX.muted ? '소리 켜기' : '소리 끄기', 'ghost']);
     if (where === 'console') {
@@ -391,11 +410,16 @@
       }
       case 'race': case 'battle': startFinale(act); break;
       case 'skip': stageBC.postMessage({ t: 'skip' }); break;
+      case 'pickEnd': {
+        const left = R.pick ? R.pick.pickers.filter(p => !p.choice).length : 0;
+        if (left && !(await UI.confirm(`아직 ${left}명이 짝을 고르지 않았어요.<br>고르지 않은 사람은 보상 없이 결과를 발표할까요?`, { icon: 'flag', ok: '결과 발표' }))) return;
+        finishPick(); break;
+      }
       case 'send': sendResults(); break;
       case 'print': printResult(); break;
       case 'rematch':
         if (!(await UI.confirm('다른 종목으로 결승전을 다시 할까요?<br>결과가 새로 정해져요.', { icon: 'dice', ok: '다시 하기' }))) return;
-        R.result = null; finaleRun = null; setPhase('finale'); break;
+        R.result = null; R.race = null; R.pick = null; R.pairs = null; finaleRun = null; setPhase('finale'); break;
       case 'finish': finish(); break;
       case 'sound': SFX.toggle(); stageBC.postMessage({ t: 'mute', on: SFX.muted }); renderDock(); renderGame(); break;
       case 'stage': enterStage(); break;
@@ -426,12 +450,15 @@
     const R = S.room;
     if (m.type === 'hello') {
       Net.send('welcome', { to: m.token, phase: R.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic(), known: !!R.students[m.token] });
+      if (R.phase === 'pick' && R.pick) { const pk = R.pick.pickers.find(p => p.id === m.token); if (pk) setTimeout(() => sendPick(pk), 300); }
+    } else if (m.type === 'pickChoice') {
+      onPickChoice(m);
     } else if (m.type === 'claim') {
       const name = String(m.name || '').trim().slice(0, 12);
       const owner = Object.entries(R.students).find(([, s]) => s.name === name);
       let reason = null;
       if (!name) reason = '이름이 비어 있어요';
-      else if (R.phase === 'finale' || R.phase === 'result') reason = '이미 결승전이 진행 중이에요';
+      else if (R.phase === 'finale' || R.phase === 'pick' || R.phase === 'result') reason = '이미 결승전이 진행 중이에요';
       else if (S.roster.length && !S.roster.includes(name)) reason = '명단에 없는 이름이에요';
       else if (owner && owner[0] !== m.token) reason = '이미 다른 친구가 고른 이름이에요';
       if (reason) { Net.send('claimResult', { to: m.token, ok: false, reason }); return; }
@@ -515,14 +542,16 @@
     $('#g-none').classList.add('hidden'); $('#g-room').classList.remove('hidden');
     const R = S.room, list = Object.entries(R.students);
     $('#c-code').textContent = R.code;
-    const PH = { lobby: '대기실', quest: '모험 진행 중', finale: '결승전', result: '결과 발표' };
+    const PH = { lobby: '대기실', quest: '모험 진행 중', finale: '결승전', pick: '1~3등 짝 고르기', result: '결과 발표' };
     const done = list.filter(([, s]) => s.done).length;
-    $('#c-status').innerHTML = [
+    const chips = [
       [Net.connected ? 'bolt' : 'lock', connText || (Net.connected ? '실시간 연결됨' : '연결 안 됨')],
       ['flag', PH[R.phase]],
       ['group', `참가 ${list.length}명${S.roster.length ? ` / ${S.roster.length}` : ''}`],
       ['trophy', `퀘스트 완료 ${done}명`]
-    ].map(([ic, t]) => `<span class="chip">${icon(ic, 22)}${esc(t)}</span>`).join('');
+    ];
+    if (R.phase === 'pick' && R.pick) R.pick.pickers.forEach(p => chips.push([p.choice ? 'heart' : 'hourglass', `${p.rank}등 ${p.name}: ${p.choice ? '선택 완료' : `후보 ${p.cands.length}명 중 고르는 중`}`]));
+    $('#c-status').innerHTML = chips.map(([ic, t]) => `<span class="chip">${icon(ic, 22)}${esc(t)}</span>`).join('');
     $('#c-actions').innerHTML = actionsFor('console').map(a => btnHTML(a, false)).join('');
     $$('#c-actions [data-act]').forEach(b => b.addEventListener('click', () => doAction(b.dataset.act)));
     const total = GameData.TOTAL_STEPS;
@@ -563,7 +592,7 @@
     const scored = ps.map(p => ({ id: p.id, name: p.name, score: Solver.scoreFor(mode, p.stats) }));
     const nameToId = {}; ps.forEach(p => { nameToId[p.name] = p.id; });
     let res;
-    try { res = Solver.solve(seatsOf(S.layout), scored, buildRules(nameToId), { avoidScope: S.opts.avoidScope }); }
+    try { res = Solver.solve(seatsOf(S.layout), scored, buildRules(nameToId), solveOpts()); }
     catch (e) { return UI.alert(esc(e.message), { icon: 'desk' }); }
     // 지키지 못한 조건은 콘솔에만 은근하게 표시 (발표 화면에는 아무것도 안 나옴)
     if (res.violations.length && !inStage()) toast(`설정 ${res.violations.length}개를 적용하지 못했어요`, 'gear');
@@ -581,7 +610,80 @@
     const R = S.room;
     if (!R || !finaleRun || finaleRun.runId !== runId || !finaleRun.running) return;
     finaleRun.running = false;
-    R.result = R.pendingResult; delete R.pendingResult;
+    R.race = R.pendingResult; delete R.pendingResult;
+    if (S.opts.pickReward !== false && startPick()) return;
+    R.result = R.race;
+    setPhase('result');
+  }
+
+  // ---------- 1·2·3등 보상: 짝꿍 고르기 ----------
+  // 후보는 무작위처럼 보이지만, 비밀 조건이 걸린 학생은 몰래 빠짐
+  const PICK_COUNT = { 1: 5, 2: 4, 3: 3 };
+  const shuffleArr = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function raceRules() {
+    const nameToId = {}; S.room.race.forEach(p => { nameToId[p.name] = p.id; });
+    return buildRules(nameToId);
+  }
+  function startPick() {
+    const R = S.room, race = R.race;
+    const rules = raceRules();
+    const top = race.filter(p => p.rank <= 3).sort((a, b) => a.rank - b.rank);
+    const topIds = new Set(top.map(p => p.id));
+    const ruled = new Set(), togetherOf = new Set(), avoidTop = new Set();
+    rules.forEach(r => {
+      if (r.type === 'together') { ruled.add(r.a); ruled.add(r.b); togetherOf.add(r.a); togetherOf.add(r.b); }
+      else if (r.type === 'fixed' || r.type === 'front' || r.type === 'back') ruled.add(r.a);
+      else if (r.type === 'avoid') { if (topIds.has(r.a)) avoidTop.add(r.b); if (topIds.has(r.b)) avoidTop.add(r.a); }
+    });
+    let pool = shuffleArr(race.filter(p => p.real && R.students[p.id] && !topIds.has(p.id) && !ruled.has(p.id) && !avoidTop.has(p.id)));
+    const pickers = [];
+    R.pickSkipped = [];
+    top.forEach(t => {
+      if (!t.real || !R.students[t.id]) return;
+      if (togetherOf.has(t.id)) { R.pickSkipped.push(t.name); return; }
+      const cands = pool.splice(0, PICK_COUNT[t.rank]);
+      if (!cands.length) return;
+      pickers.push({ id: t.id, name: t.name, cls: t.cls, rank: t.rank, cands: cands.map(c => c.id), choice: null });
+    });
+    if (!pickers.length) return false;
+    R.pick = { id: uid(), pickers };
+    setPhase('pick');
+    pickers.forEach(sendPick);
+    if (R.pickSkipped.length && !inStage()) toast(`짝 만들기 조건 때문에 ${R.pickSkipped.join(', ')}은(는) 고르기를 건너뛰어요`, 'gear');
+    return true;
+  }
+  function nameOfId(id) { const s = S.room.students[id]; return s ? s.name : ''; }
+  function sendPick(pk) {
+    if (pk.choice) { Net.send('pickAck', { to: pk.id, name: nameOfId(pk.choice) }); return; }
+    const st = S.room.students;
+    Net.send('pickStart', { to: pk.id, pickId: S.room.pick.id, rank: pk.rank, cands: pk.cands.map(id => ({ id, name: st[id] ? st[id].name : '?', cls: st[id] ? st[id].cls : null })) });
+  }
+  function onPickChoice(m) {
+    const R = S.room;
+    if (R.phase !== 'pick' || !R.pick) return;
+    const pk = R.pick.pickers.find(p => p.id === m.token);
+    if (!pk || pk.choice || !pk.cands.includes(m.choice)) return;
+    pk.choice = m.choice;
+    save();
+    sendPick(pk);
+    pushStage(true); renderGame(); renderDock();
+    if (R.pick.pickers.every(p => p.choice)) setTimeout(() => { if (S.room && S.room.phase === 'pick') finishPick(); }, 3000);
+  }
+  function finishPick() {
+    const R = S.room;
+    if (!R || R.phase !== 'pick') return;
+    const race = R.race, chosen = R.pick.pickers.filter(p => p.choice);
+    const rules = raceRules();
+    chosen.forEach(p => rules.push({ type: 'together', a: p.id, b: p.choice }));
+    // 고른 사람은 등수대로 자리를 받고, 뽑힌 짝은 번호와 상관없이 그 옆자리로 (free)
+    const picked = new Set(chosen.map(p => p.choice));
+    const scored = race.map(p => ({ id: p.id, name: p.name, score: -p.rank, free: picked.has(p.id) }));
+    let res;
+    try { res = Solver.solve(seatsOf(S.layout), scored, rules, solveOpts()); }
+    catch (e) { R.result = race; setPhase('result'); return; }
+    if (res.violations.length && !inStage()) toast(`설정 ${res.violations.length}개를 적용하지 못했어요`, 'gear');
+    R.result = race.map(p => Object.assign({}, p, { seat: res.seatOf[p.id] }));
+    R.pairs = chosen.map(p => [p.name, nameOfId(p.choice)]);
     setPhase('result');
   }
 
@@ -591,7 +693,7 @@
   function renderResultConsole() {
     $('#r-classroom').innerHTML = seatMapHTML(resultMap(), swapMode);
     const ranks = S.room.result.slice().sort((a, b) => a.rank - b.rank);
-    $('#r-ranks').innerHTML = ranks.map(p => `<div class="rank-item"><b>${p.rank}등</b><img class="avatar sm" src="${CLASSES[p.cls].img}" alt=""><span class="grow">${esc(p.name)}${p.real ? '' : ' <small class="muted">(대리)</small>'}</span><span class="muted">${p.seat}번</span></div>`).join('');
+    $('#r-ranks').innerHTML = (S.room.pairs && S.room.pairs.length ? `<div class="rank-item" style="flex-wrap:wrap">${icon('heart', 26)}<span class="grow">짝 고르기: ${S.room.pairs.map(([a, b]) => `${esc(a)} → ${esc(b)}`).join(', ')}</span></div>` : '') + ranks.map(p => `<div class="rank-item"><b>${p.rank}등</b><img class="avatar sm" src="${CLASSES[p.cls].img}" alt=""><span class="grow">${esc(p.name)}${p.real ? '' : ' <small class="muted">(대리)</small>'}</span><span class="muted">${p.seat}번</span></div>`).join('');
     $$('#r-classroom .cell.desk').forEach(cell => cell.addEventListener('click', () => {
       if (!swapMode) return;
       const num = +cell.dataset.num;
@@ -601,7 +703,6 @@
         const a = res.find(p => p.seat === swapSel), b = res.find(p => p.seat === num);
         if (a && b) { const t = a.seat; a.seat = b.seat; b.seat = t; }
         else if (a) a.seat = num; else if (b) b.seat = swapSel;
-        res.slice().sort((x, y) => x.seat - y.seat).forEach((p, i) => { p.rank = i + 1; });
         save(); pushStage(true);
       }
       swapSel = null; renderResultConsole();
@@ -683,7 +784,7 @@
     res.forEach(p => res.forEach(q => {
       if (p.seat >= q.seat) return;
       const a = bySeat[p.seat], b = bySeat[q.seat];
-      if (a && b && a.r === b.r && Math.abs(a.c - b.c) === 1) partners.push([p.name, q.name]);
+      if (a && b && isPair(S.layout, a, b)) partners.push([p.name, q.name]);
     }));
     const d = new Date();
     S.history.unshift({ date: `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`, mode: S.room.mode, seatMap, partners });

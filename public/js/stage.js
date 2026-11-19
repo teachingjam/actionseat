@@ -48,10 +48,11 @@
     }
     if (s.phase === 'lobby') { renderLobby(); showView('sv-lobby'); }
     else if (s.phase === 'quest') { renderQuest(); showView('sv-quest'); }
-    else if (s.phase === 'finale') { showView('sv-select'); }
+    else if (s.phase === 'finale') { revealed = false; showView('sv-select'); }
+    else if (s.phase === 'pick') { renderPick(prevPhase !== 'pick'); showView('sv-pick'); }
     else if (s.phase === 'result') {
       const key = JSON.stringify(s.result || []) + s.flipped;
-      if (key !== lastResultKey || prevPhase !== 'result') { renderResult(!revealed); lastResultKey = key; }
+      if (key !== lastResultKey || prevPhase !== 'result') { renderResult(!revealed); revealed = true; lastResultKey = key; }
       showView('sv-result');
     }
   }
@@ -113,6 +114,26 @@
     syncGrid($('#q-players'), ps, true);
   }
 
+  // ---------- 1·2·3등 짝꿍 고르기 (후보 이름은 발표 화면에 절대 나오지 않음) ----------
+  let pickDone = new Set();
+  function renderPick(first) {
+    const list = (state.pick || []).slice().sort((a, b) => a.rank - b.rank);
+    if (first) { pickDone = new Set(); SFX.play('j_cute'); SFX.play('v_choose', { delay: .8 }); }
+    const order = [2, 1, 3].map(r => list.find(p => p.rank === r)).filter(Boolean);
+    const medal = { 1: 'trophy', 2: 'silver', 3: 'bronze' };
+    $('#pick-podium').innerHTML = order.map(p => `
+      <div class="pk r${p.rank} ${p.done ? 'done' : ''}">
+        <img class="ico pk-medal" src="assets/icons/${medal[p.rank]}.png" alt="">
+        <img class="pk-av" src="${CLASSES[p.cls] ? CLASSES[p.cls].img : ''}" alt="">
+        <div class="pk-nm">${esc(p.name)}</div>
+        <div class="pk-backs">${Array.from({ length: p.n }, (_, i) => `<img src="assets/icons/card.png" style="animation-delay:${i * .15}s" alt="">`).join('')}</div>
+        <div class="pk-st">${p.done ? `${icon('heart', 30)} 짝꿍 선택 완료!` : `${icon('hourglass', 30)} 후보 ${p.n}명 중 고르는 중…`}</div>
+        ${p.done ? '<div class="stamp">결정!</div>' : ''}
+      </div>`).join('');
+    list.forEach(p => { if (p.done && !pickDone.has(p.name)) { pickDone.add(p.name); if (!first) { SFX.play('right'); SFX.play('glass', { delay: .15 }); SFX.cheer(); } } });
+    if (!first && list.length && list.every(p => p.done)) SFX.play('j_good', { delay: .4 });
+  }
+
   // ---------- 종목 선택 ----------
   $$('.mode-card').forEach(c => {
     c.addEventListener('mouseenter', () => SFX.play('select', { vol: .5 }));
@@ -129,13 +150,11 @@
     root.innerHTML = '';
     running = { runId: m.runId, players: m.players, layout: m.layout };
     const done = () => {
-      const r = running; running = null;
+      running = null;
+      revealed = false;
+      state = Object.assign({}, state, { phase: 'finale' });
+      // 다음 단계(짝 고르기 또는 결과 발표)는 교사 콘솔이 정해서 보내 줌
       bc.postMessage({ t: 'finaleDone', runId: m.runId });
-      // 교사 콘솔이 result 상태를 보내기 전에도 바로 공개
-      state = Object.assign({}, state, { phase: 'result', layout: m.layout, result: r.players.map(p => ({ id: p.id, name: p.name, cls: p.cls, rank: p.rank, seat: p.seat, real: p.real })) });
-      renderResult(true); revealed = true;
-      lastResultKey = JSON.stringify(state.result) + state.flipped;
-      showView('sv-result');
     };
     const api = m.mode === 'race' ? window.Race3D : window.Battle2D;
     running.ctrl = api.run(root, m.players, done);
