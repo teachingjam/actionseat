@@ -1,0 +1,5 @@
+# Gemini 원본 시트(용량 큼, 잘라낸 결과는 public/assets 에 있음)
+tools/raw/
+# 테스트용 이미지·로컬 설정
+images/
+.claude/
