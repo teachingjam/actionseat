@@ -419,7 +419,7 @@
       case 'print': printResult(); break;
       case 'rematch':
         if (!(await UI.confirm('다른 종목으로 결승전을 다시 할까요?<br>결과가 새로 정해져요.', { icon: 'dice', ok: '다시 하기' }))) return;
-        R.result = null; R.race = null; R.pick = null; R.pairs = null; finaleRun = null; setPhase('finale'); break;
+        R.result = null; R.race = null; R.pick = null; R.pairs = null; R.pickNote = ''; finaleRun = null; setPhase('finale'); break;
       case 'finish': finish(); break;
       case 'sound': SFX.toggle(); stageBC.postMessage({ t: 'mute', on: SFX.muted }); renderDock(); renderGame(); break;
       case 'stage': enterStage(); break;
@@ -550,6 +550,7 @@
       ['group', `참가 ${list.length}명${S.roster.length ? ` / ${S.roster.length}` : ''}`],
       ['trophy', `퀘스트 완료 ${done}명`]
     ];
+    if (R.phase === 'result' && R.pickNote) chips.push(['heart', R.pickNote]);
     if (R.phase === 'pick' && R.pick) R.pick.pickers.forEach(p => chips.push([p.choice ? 'heart' : 'hourglass', `${p.rank}등 ${p.name}: ${p.choice ? '선택 완료' : `후보 ${p.cands.length}명 중 고르는 중`}`]));
     $('#c-status').innerHTML = chips.map(([ic, t]) => `<span class="chip">${icon(ic, 22)}${esc(t)}</span>`).join('');
     $('#c-actions').innerHTML = actionsFor('console').map(a => btnHTML(a, false)).join('');
@@ -635,28 +636,43 @@
       else if (r.type === 'fixed' || r.type === 'front' || r.type === 'back') ruled.add(r.a);
       else if (r.type === 'avoid') { if (topIds.has(r.a)) avoidTop.add(r.b); if (topIds.has(r.b)) avoidTop.add(r.a); }
     });
-    let pool = shuffleArr(race.filter(p => p.real && R.students[p.id] && !topIds.has(p.id) && !ruled.has(p.id) && !avoidTop.has(p.id)));
+    const okCand = p => !topIds.has(p.id) && !ruled.has(p.id) && !avoidTop.has(p.id);
+    // 접속한 학생을 먼저, 모자라면 대리 캐릭터(접속 안 한 명단 학생, '대리 캐릭터' 옵션을 켰을 때만 결승에 참가)로 채움
+    const realPool = shuffleArr(race.filter(p => p.real && R.students[p.id] && okCand(p)));
+    const proxyPool = shuffleArr(race.filter(p => !p.real && okCand(p)));
     const pickers = [];
     R.pickSkipped = [];
+    R.pickNote = '';
+    let realTop = 0;
     top.forEach(t => {
       if (!t.real || !R.students[t.id]) return;
+      realTop++;
       if (togetherOf.has(t.id)) { R.pickSkipped.push(t.name); return; }
-      const cands = pool.splice(0, PICK_COUNT[t.rank]);
+      const n = PICK_COUNT[t.rank];
+      const cands = realPool.splice(0, n);
+      if (cands.length < n) cands.push(...proxyPool.splice(0, n - cands.length));
       if (!cands.length) return;
       pickers.push({ id: t.id, name: t.name, cls: t.cls, rank: t.rank, cands: cands.map(c => c.id), choice: null });
     });
-    if (!pickers.length) return false;
+    if (!pickers.length) {
+      // 건너뛴 이유는 교사 콘솔에만 표시
+      R.pickNote = !realTop ? '1~3등 중 접속한 학생이 없어 짝 고르기를 건너뛰었어요'
+        : R.pickSkipped.length === realTop ? '짝 만들기 조건이 걸려 있어 짝 고르기를 건너뛰었어요'
+        : `후보로 뽑을 학생이 부족해 짝 고르기를 건너뛰었어요${S.opts.includeAbsent ? '' : " (비밀 조건 > 옵션 '대리 캐릭터'를 켜면 결석한 명단 학생도 후보가 돼요)"}`;
+      return false;
+    }
     R.pick = { id: uid(), pickers };
     setPhase('pick');
     pickers.forEach(sendPick);
     if (R.pickSkipped.length && !inStage()) toast(`짝 만들기 조건 때문에 ${R.pickSkipped.join(', ')}은(는) 고르기를 건너뛰어요`, 'gear');
     return true;
   }
-  function nameOfId(id) { const s = S.room.students[id]; return s ? s.name : ''; }
+  // 접속한 학생과 대리 캐릭터 모두 결승 명단(race)에 이름·직업이 있음
+  function raceEntry(id) { return (S.room.race || []).find(p => p.id === id) || S.room.students[id] || null; }
+  function nameOfId(id) { const s = raceEntry(id); return s ? s.name : ''; }
   function sendPick(pk) {
     if (pk.choice) { Net.send('pickAck', { to: pk.id, name: nameOfId(pk.choice) }); return; }
-    const st = S.room.students;
-    Net.send('pickStart', { to: pk.id, pickId: S.room.pick.id, rank: pk.rank, cands: pk.cands.map(id => ({ id, name: st[id] ? st[id].name : '?', cls: st[id] ? st[id].cls : null })) });
+    Net.send('pickStart', { to: pk.id, pickId: S.room.pick.id, rank: pk.rank, cands: pk.cands.map(id => { const e = raceEntry(id); return { id, name: e ? e.name : '?', cls: e ? e.cls : null }; }) });
   }
   function onPickChoice(m) {
     const R = S.room;
