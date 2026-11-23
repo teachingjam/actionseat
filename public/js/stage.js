@@ -124,7 +124,14 @@
       if (!wasDone && p.done && withBar) SFX.play('glass', { gap: 80 });
     });
   }
+  // 미니게임 기록 상위 3명
+  function renderMiniTop() {
+    const top = (state.mini ? state.players : []).filter(p => p.mini > 0 && CLASSES[p.cls]).sort((a, b) => b.mini - a.mini).slice(0, 3);
+    const html = top.length ? `${icon('shoe', 34)}` + top.map((p, i) => `<span><b>${i + 1}</b><img src="${CLASSES[p.cls].img}" alt="">${esc(p.name)} <em>${p.mini.toLocaleString()}</em></span>`).join('') : '';
+    $$('[data-mini-top]').forEach(el => { if (el._html !== html) { el._html = html; el.innerHTML = html; } });
+  }
   function renderLobby() {
+    renderMiniTop();
     $('#l-code').textContent = state.code;
     $('#l-url').textContent = state.joinUrl;
     if (qrFor !== state.joinUrl) {

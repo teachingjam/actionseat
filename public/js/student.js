@@ -15,7 +15,7 @@
 
   let left = false;    // 방이 닫혔거나 내보내진 상태: 남은 타이머·메시지가 다시 저장하거나 화면을 바꾸지 못하게 함
   function save() { if (!left) store(KEY, me); }
-  function leaveRoom() { left = true; stopTimers(); clearInterval(helloTimer); store(KEY, null); Net.leave(); }
+  function leaveRoom() { left = true; Runner.close(); stopTimers(); clearInterval(helloTimer); store(KEY, null); Net.leave(); }
 
   // ---------- 소리 켜기/끄기 ----------
   $$('[data-sfx-toggle]').forEach(b => {
@@ -124,6 +124,7 @@
       return;
     }
     welcomed = true;
+    if (m.mini !== undefined) miniOn = m.mini;
     clearInterval(helloTimer);
     resetJoinBtn();
     roster = m.roster || [];
@@ -141,20 +142,42 @@
     const before = players.length;
     players = m.players || players;
     roster = m.roster || roster;
+    if (m.mini !== undefined) miniOn = m.mini;
     if (!welcomed) return;
+    renderMini();
     if ($('#v-name:not(.hidden)')) renderNames();
     if ($('#v-wait:not(.hidden)')) { renderMates(); if (players.length > before) S('pluck', { vary: .3 }); }
     if (prev !== phase) enterPhase();
   }
   function enterPhase() {
+    if (Runner.isOpen && !miniOk()) { Runner.stop(); toast(phase === 'quest' ? '모험이 시작됐어요! 달리기는 끝!' : '선생님 화면을 보세요!', 'flag'); }
     if (phase === 'quest') S('j_chapter');
     if (phase === 'finale') { S('j_start'); if (me.pick || me.result) { me.pick = null; me.result = null; save(); } } // 다시 하는 결승전이면 이전 결과를 지움
     route();
   }
 
   function profile() {
-    return { token: me.token, name: me.name, cls: me.cls, stats: me.stats, traits: me.traits, step: me.step, done: me.done };
+    return { token: me.token, name: me.name, cls: me.cls, stats: me.stats, traits: me.traits, step: me.step, done: me.done, mini: me.mini || 0 };
   }
+
+  // ---------- 기다리는 동안 미니게임 ----------
+  let miniOn = true;
+  const miniOk = () => miniOn && !left && me && me.cls && (phase === 'lobby' || (phase === 'quest' && me.done));
+  const miniBoard = () => players.filter(p => p.cls && p.name !== me.name).map(p => ({ name: p.name, cls: p.cls, score: p.mini || 0 })).concat([{ name: me.name, cls: me.cls, score: me.mini || 0, me: true }]);
+  function renderMini() {
+    if (Runner.isOpen && !miniOk()) Runner.stop();
+    Runner.refresh();
+    $$('[data-mini]').forEach(box => {
+      const on = miniOk(); box.classList.toggle('hidden', !on); if (!on) return;
+      const top = miniBoard().filter(p => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+      const html = `<button class="btn big green" data-mini-go>${icon('shoe', 34)} 미니게임: 모험 달리기</button><div class="rn-board">${top.length ? '<ol>' + top.map((p, i) => `<li class="${p.me ? 'me' : ''}"><b>${i + 1}</b><img src="${CLASSES[p.cls].img}" alt=""><span>${esc(p.name)}</span><em>${p.score.toLocaleString()}</em></li>`).join('') + '</ol>' : ''}</div>`;
+      if (box._html !== html) { box._html = html; box.innerHTML = html; }
+    });
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[data-mini-go]') || !miniOk()) return;
+    Runner.open({ cls: me.cls, name: me.name, best: me.mini || 0, board: miniBoard, onScore(s, rec) { if (!rec) return; me.mini = s; save(); sendUpdate(true); renderMini(); } });
+  });
   function sendUpdate(force) {
     const now = Date.now();
     if (!force && now - lastUpdateSent < 300) return;
@@ -366,7 +389,7 @@
     setAnim('#wait-img', me.cls, 'idle');
     $('#wait-name').textContent = me.name;
     $('#wait-cls').innerHTML = `${icon('shield', 22)} ${c.name}`;
-    renderMates();
+    renderMates(); renderMini();
   }
   function renderMates() {
     const html = players.filter(p => p.cls).map(p => `
@@ -1201,7 +1224,8 @@
         ? (me.pick && me.pick.done
           ? `${icon('heart', 80, 'bob')}<p style="font-family:Jua;font-size:24px">짝꿍으로 <b style="color:var(--gold)">${esc(me.pick.name)}</b>을(를) 골랐어요!</p><p class="muted">다른 친구들이 고르면 곧 자리가 발표돼요.</p>`
           : `${icon('trophy', 80, 'bob')}<p style="font-family:Jua;font-size:24px" class="shimmer">1·2·3등이 짝꿍을 고르는 중!</p><p class="muted">곧 최종 자리가 발표돼요. 선생님 화면을 보세요!</p>`)
-        : `<div class="spinner"></div><p style="font-family:Jua;font-size:20px">다른 친구들의 모험을 기다리는 중…</p>`;
+        : `<div class="spinner"></div><p style="font-family:Jua;font-size:20px">다른 친구들의 모험을 기다리는 중…</p><div class="mini-box hidden" data-mini></div>`;
+    renderMini();
   }
 
   // ---------- 1·2·3등 보상: 짝꿍 고르기 (번호판 뽑기처럼) ----------

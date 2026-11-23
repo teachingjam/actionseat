@@ -20,6 +20,9 @@
 .lobby-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .lh-count { font-family: 'Jua'; font-size: 44px; }
 .lh-count .display { font-size: 64px; color: var(--gold); }
+.mini-top { margin-left: auto; display: flex; align-items: center; gap: 10px; font-family: 'Jua'; font-size: 18px; flex-wrap: wrap; justify-content: flex-end; }
+.mini-top span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 8px; border-radius: 999px; background: rgba(255,255,255,.08); }
+.mini-top b { font-family: var(--display); color: var(--gold); } .mini-top img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; } .mini-top em { font-style: normal; color: var(--gold); }
 .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; overflow: auto; padding: 6px; align-content: start; }
 .pcard { position: relative; border-radius: 20px; background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); border: 2px solid var(--line); padding: 10px 8px 12px; text-align: center; }
 .pcard.done { border-color: var(--gold); box-shadow: 0 0 22px rgba(255,207,74,.35); }
@@ -162,3 +165,5 @@ body.embed .commentary { bottom: 86px; }
   #sv-result { display: block !important; }
   .stage-body { overflow: visible; height: auto; }
 }
+.lobby-head > div:nth-child(2) { flex: none; white-space: nowrap; }
+.lobby-head { padding-right: 130px; }

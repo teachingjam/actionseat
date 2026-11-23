@@ -1,0 +1,53 @@
+/* 기다리는 동안 하는 미니게임 '모험 달리기' */
+body.rn-on { overflow: hidden; }
+#runner { position: fixed; inset: 0; z-index: 900; background: #0b0920; touch-action: none; user-select: none; -webkit-user-select: none; font-family: 'Jua', sans-serif; color: #fff; }
+#runner canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rn-hud { position: absolute; left: 14px; right: 14px; top: 10px; display: flex; align-items: center; gap: 16px; pointer-events: none; text-shadow: 0 2px 0 rgba(0,0,0,.6), 0 0 8px rgba(0,0,0,.4); }
+.rn-hp { display: flex; align-items: center; gap: 6px; flex: 0 1 380px; }
+.rn-bar { flex: 1; height: 22px; padding: 3px; border-radius: 14px; background: rgba(15,8,35,.7); border: 2px solid rgba(255,255,255,.6); }
+.rn-bar i { display: block; height: 100%; width: 100%; border-radius: 10px; background: linear-gradient(180deg, #a8ffcf, #2fd07a); transition: width .15s linear; }
+.rn-bar i.mi { background: linear-gradient(180deg, #ffe9a0, #ffb52a); }
+.rn-bar i.lo { background: linear-gradient(180deg, #ff9aa8, #ff3d5a); }
+.rn-info { margin-left: auto; display: flex; align-items: center; gap: 18px; font-size: 24px; }
+.rn-info span { display: inline-flex; align-items: center; gap: 4px; }
+.rn-score { font-family: 'Black Han Sans', sans-serif; font-size: 34px; color: #ffe27a; min-width: 110px; justify-content: flex-end; }
+.rn-x { pointer-events: auto; width: 46px; height: 46px; border-radius: 14px; border: 1px solid rgba(255,255,255,.4); background: rgba(16,10,40,.6); color: #fff; font-size: 20px; }
+.rn-msg { position: absolute; left: 50%; top: 22%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; opacity: 0; }
+.rn-msg.on { animation: rnMsg 1.7s cubic-bezier(.2,1.2,.4,1) both; }
+.rn-msg b { display: block; font: 400 clamp(34px, 6vw, 62px)/1.1 'Black Han Sans', sans-serif; white-space: nowrap; text-shadow: 0 4px 0 rgba(20,8,40,.85), 0 0 22px rgba(0,0,0,.5); }
+.rn-msg span { font-size: 22px; white-space: nowrap; text-shadow: 0 2px 0 rgba(20,8,40,.9); }
+@keyframes rnMsg { 0% { opacity: 0; transform: translate(-50%,-50%) scale(1.8); } 14% { opacity: 1; transform: translate(-50%,-50%) scale(1); } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-70%); } }
+.rn-ctl { position: absolute; left: 18px; right: 18px; bottom: 14px; display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; }
+.rn-left { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.rn-b { pointer-events: auto; touch-action: none; position: relative; border: 3px solid rgba(255,255,255,.75); border-radius: 26px; background: rgba(20,12,46,.5); color: #fff; width: clamp(110px, 15vw, 180px); height: clamp(70px, 13vh, 100px); font-family: 'Jua', sans-serif; font-size: 24px; overflow: hidden; padding: 0; }
+.rn-b.dn { transform: scale(.94); background: rgba(255,255,255,.32); }
+.rn-b b { position: relative; font-weight: 400; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
+.rn-skill { width: clamp(84px, 15vh, 112px); height: clamp(84px, 15vh, 112px); border-radius: 50%; font-size: 13px; }
+.rn-skill img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.rn-skill i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(255,207,74,.6); }
+.rn-skill b { position: absolute; left: 0; right: 0; bottom: 10px; }
+.rn-skill.ready { border-color: #ffcf4a; animation: rnReady .7s ease-in-out infinite alternate; }
+.rn-skill.ready img { opacity: 1; } .rn-skill.ready i { opacity: .25; }
+.rn-skill.using i { background: rgba(62,224,255,.6); }
+@keyframes rnReady { to { transform: scale(1.1); box-shadow: 0 0 30px #ffcf4a; } }
+.rn-panel { position: absolute; inset: 0; display: grid; place-items: center; padding: 14px; background: rgba(8,5,24,.5); }
+.rn-panel.hidden { display: none; }
+.rn-card { display: grid; grid-template-columns: 1.35fr 1fr; gap: 26px; width: min(960px, 100%); max-height: 100%; overflow: auto; padding: 22px 26px; border-radius: 26px; background: rgba(28,18,70,.95); border: 2px solid rgba(255,255,255,.2); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.rn-card h2 { margin: 0; font: 400 clamp(30px, 6.4vh, 46px)/1.15 'Black Han Sans', sans-serif; color: #ffcf4a; text-shadow: 0 4px 0 #6b3400; }
+.rn-card h3 { margin: 0 0 8px; display: flex; align-items: center; gap: 6px; font-size: 21px; font-weight: 400; }
+.rn-sub { margin: 6px 0 12px; font-size: 16px; color: #cfc6f2; word-break: keep-all; }
+.rn-how { display: grid; gap: 7px; }
+.rn-how div { display: grid; grid-template-columns: 124px 1fr; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: rgba(255,255,255,.08); }
+.rn-how b { font-weight: 400; font-size: 19px; color: #ffe27a; } .rn-how span { font-size: 15px; color: #e6e0ff; word-break: keep-all; }
+.rn-btns { display: flex; gap: 12px; margin-top: 16px; } .rn-btns .rn-go { flex: 1; padding: 14px 10px; font-size: 24px; }
+.rn-big { font: 400 clamp(48px, 13vh, 92px)/1.1 'Black Han Sans', sans-serif; color: #fff6d0; text-shadow: 0 5px 0 #6b3400; } .rn-big small { font-size: .35em; margin-left: 6px; }
+.rn-stat { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 19px; } .rn-stat span { display: inline-flex; align-items: center; gap: 4px; }
+.rn-board ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rn-board li { display: grid; grid-template-columns: 26px 34px 1fr auto; align-items: center; gap: 8px; padding: 5px 10px 5px 6px; border-radius: 12px; background: rgba(255,255,255,.08); font-size: 17px; }
+.rn-board li.me { background: rgba(255,207,74,.28); outline: 2px solid rgba(255,207,74,.7); }
+.rn-board b { font: 400 18px 'Black Han Sans', sans-serif; color: #ffcf4a; text-align: center; } .rn-board img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; } .rn-board span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rn-board em { font: 400 18px 'Black Han Sans', sans-serif; color: #ffe27a; }
+.rn-none { color: #cfc6f2; font-size: 16px; word-break: keep-all; }
+/* 대기 화면의 안내 */
+.mini-box { margin: 10px auto 0; width: 100%; max-width: 460px; } .mini-box .btn { width: 100%; }
+.mini-box .rn-board { margin-top: 10px; text-align: left; } .mini-box .rn-none { margin: 8px 0 0; text-align: center; }
+@media (max-width: 760px) { .rn-card { grid-template-columns: 1fr; gap: 14px; padding: 16px; } .rn-info { gap: 8px; font-size: 18px; } .rn-score { font-size: 24px; min-width: 70px; } .rn-hp { flex: 1 1 100px; } .rn-how div { grid-template-columns: 96px 1fr; } }

@@ -312,7 +312,7 @@
     if (!R) return { t: 'state', phase: 'idle' };
     return {
       t: 'state', phase: R.phase, runId: activeRunId(), code: R.code, joinUrl: joinUrl(),
-      players: Object.values(R.students).map(s => ({ name: s.name, cls: s.cls, step: s.step || 0, done: !!s.done, title: s.cls ? GameData.titleOf(s.cls, s.traits) : '' })),
+      players: Object.values(R.students).map(s => ({ name: s.name, cls: s.cls, step: s.step || 0, done: !!s.done, title: s.cls ? GameData.titleOf(s.cls, s.traits) : '', mini: s.mini || 0 })), mini: miniOn(),
       total: GameData.TOTAL_STEPS, rosterCount: S.roster.length,
       pick: R.pick ? R.pick.pickers.map(p => ({ name: p.name, cls: p.cls, rank: p.rank, n: p.cands.length, done: !!p.choice })) : null,
       layout: S.layout, result: R.result, mode: R.mode, flipped
@@ -403,6 +403,7 @@
     if (ph === 'pick') A.push(['pickEnd', 'flag', '짝 고르기 마감', 'green']);
     if (ph === 'result') { A.push(['send', 'phone', '학생에게 전송', 'green']); A.push(['print', 'printer', '인쇄', 'secondary']); A.push(['rematch', 'dice', '다른 종목', 'secondary']); A.push(['finish', 'chest', '저장하고 끝내기', 'danger']); }
     A.push(['sound', SFX.muted ? 'mute' : 'sound', SFX.muted ? '소리 켜기' : '소리 끄기', 'ghost']);
+    if (where === 'console' && (ph === 'lobby' || ph === 'quest')) A.push(['mini', 'shoe', miniOn() ? '미니게임 끄기' : '미니게임 켜기', 'ghost']);
     A.push(['music', SFX.musicMuted ? 'mute' : 'megaphone', SFX.musicMuted ? '음악 켜기' : '음악 끄기', 'ghost']);
     if (where === 'console') {
       A.push(['popup', 'megaphone', popupAlive ? '발표 창 앞으로' : '발표 창 열기', 'secondary']);
@@ -466,6 +467,7 @@
         R.result = null; R.race = null; R.pick = null; R.pairs = null; R.pickNote = ''; R.resultSent = false; setRun(null); setPhase('finale'); break;
       case 'finish': finish(); break;
       case 'sound': SFX.toggle(); stageBC.postMessage({ t: 'mute', on: SFX.muted }); renderDock(); renderGame(); break;
+      case 'mini': S.opts.mini = !miniOn(); save(); broadcastRoom(true); pushStage(); renderGame(); toast(miniOn() ? '기다리는 학생들이 미니게임을 할 수 있어요' : '미니게임을 껐어요', 'shoe'); break;
       case 'music': SFX.setMusicMuted(!SFX.musicMuted); stageBC.postMessage({ t: 'music', off: SFX.musicMuted }); renderDock(); renderGame(); break;
       case 'stage': enterStage(); break;
       case 'popup': openPopup(); break;
@@ -480,12 +482,13 @@
   // ================= 방 운영 (학생 기기와 실시간 통신) =================
   const students = () => S.room ? S.room.students : {};
   const claimedNames = () => Object.values(students()).map(s => s.name);
-  const playersPublic = () => Object.values(students()).map(s => ({ name: s.name, cls: s.cls }));
+  const playersPublic = () => Object.values(students()).map(s => ({ name: s.name, cls: s.cls, mini: s.mini || 0 }));
+  const miniOn = () => S.opts.mini !== false;
 
   let bcTimer = null;
   function broadcastRoom(now) {
     if (!S.room) return;
-    const send = () => { bcTimer = null; Net.send('room', { phase: S.room.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic() }); };
+    const send = () => { bcTimer = null; Net.send('room', { phase: S.room.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic(), mini: miniOn() }); };
     if (now) { clearTimeout(bcTimer); send(); return; }
     if (!bcTimer) bcTimer = setTimeout(send, 400);
   }
@@ -494,7 +497,7 @@
     if (!S.room || dead) return;
     const R = S.room;
     if (m.type === 'hello') {
-      Net.send('welcome', { to: m.token, phase: R.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic(), known: !!R.students[m.token] });
+      Net.send('welcome', { to: m.token, phase: R.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic(), mini: miniOn(), known: !!R.students[m.token] });
       if (R.phase === 'pick' && R.pick) { const pk = R.pick.pickers.find(p => p.id === m.token); if (pk) setTimeout(() => sendPick(pk), 300); }
       // 결과를 보낸 뒤 다시 접속한 학생(화면이 꺼졌던 태블릿 등)에게도 결과를 다시 보냄
       if (R.phase === 'result' && R.resultSent) {
@@ -526,6 +529,7 @@
         s = R.students[m.token] = { name: m.name };
       }
       ['cls', 'stats', 'traits', 'step', 'done'].forEach(k => { if (m[k] !== undefined) s[k] = m[k]; });
+      if (+m.mini > 0) s.mini = Math.max(s.mini || 0, Math.min(999999, Math.floor(+m.mini))); // 미니게임 최고 기록 (등수와 무관)
       save();
       refreshSoon(); broadcastRoom();
     }
