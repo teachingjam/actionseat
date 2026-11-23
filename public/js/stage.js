@@ -30,6 +30,7 @@
     else if (m.t === 'finale') runFinale(m);
     else if (m.t === 'skip') { if (running && running.ctrl && running.ctrl.skip) running.ctrl.skip(); }
     else if (m.t === 'mute') SFX.setMuted(m.on);
+    else if (m.t === 'music') SFX.setMusicMuted(m.off);
     else if (m.t === 'who') bc.postMessage({ t: 'here', embed });
     else if (m.t === 'closeStage' && !embed) window.close();
   };
@@ -72,13 +73,14 @@
     }
     const prevPhase = state.phase;
     state = s;
-    if (s.phase === 'idle' || !s.phase) { showView('sv-idle'); return; }
+    if (s.phase === 'idle' || !s.phase) { SFX.music(null); showView('sv-idle'); return; }
     if (prevPhase !== s.phase) {
       checkSound();
       if (s.phase === 'lobby') SFX.play('j_start');
       if (s.phase === 'quest') SFX.play('j_chapter');
-      if (s.phase === 'finale') { SFX.play('v_choose'); SFX.play('j_cute', { delay: 1.2 }); }
+      if (s.phase === 'finale') { SFX.play('duel'); if (window.Finale) window.Finale.preload(); }
     }
+    SFX.music({ lobby: 'bgm_lobby', quest: 'bgm_lobby', finale: 'bgm_lobby', pick: 'bgm_result', result: 'bgm_result' }[s.phase] || null, .34);
     if (s.phase === 'lobby') { renderLobby(); showView('sv-lobby'); }
     else if (s.phase === 'quest') { renderQuest(); showView('sv-quest'); }
     else if (s.phase === 'finale') { revealed = false; showView('sv-select'); }
@@ -151,7 +153,7 @@
   let pickDone = new Set();
   function renderPick(first) {
     const list = (state.pick || []).slice().sort((a, b) => a.rank - b.rank);
-    if (first) { pickDone = new Set(); SFX.play('j_cute'); SFX.play('v_choose', { delay: .8 }); }
+    if (first) { pickDone = new Set(); SFX.play('j_cute'); }
     const order = [2, 1, 3].map(r => list.find(p => p.rank === r)).filter(Boolean);
     const medal = { 1: 'trophy', 2: 'silver', 3: 'bronze' };
     $('#pick-podium').innerHTML = order.map(p => `
@@ -178,6 +180,7 @@
     if (running && running.runId === m.runId) return;
     if (running && running.ctrl && running.ctrl.destroy) running.ctrl.destroy();
     revealed = false;
+    SFX.music(null);
     showView('sv-finale');
     const root = $('#finale-root');
     root.innerHTML = '';
@@ -190,8 +193,12 @@
       // 다음 단계(짝 고르기 또는 결과 발표)는 교사 콘솔이 정해서 보내 줌
       bc.postMessage({ t: 'finaleDone', runId: m.runId });
     };
-    const api = m.mode === 'race' ? window.Race3D : window.Battle2D;
-    running.ctrl = api.run(root, m.players, done);
+    // 3D 모듈이 아직 안 왔으면(느린 인터넷) 기다렸다가 시작
+    const go = () => { if (running === mine) mine.ctrl = window.Finale.run(m.mode, root, m.players, done); };
+    if (window.Finale) return go();
+    root.innerHTML = '<div class="fin-load"><div class="spinner"></div><p>경기장을 준비하고 있어요…</p></div>';
+    window.addEventListener('finale-ready', go, { once: true });
+    setTimeout(() => { if (running === mine && !mine.ctrl) done(); }, 25000); // 끝내 못 불러오면 결과로 넘어감
   }
 
   // ---------- 결과 ----------

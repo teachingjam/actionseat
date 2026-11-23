@@ -148,7 +148,7 @@
   }
   function enterPhase() {
     if (phase === 'quest') S('j_chapter');
-    if (phase === 'finale') { S('v_prepare'); if (me.pick || me.result) { me.pick = null; me.result = null; save(); } } // 다시 하는 결승전이면 이전 결과를 지움
+    if (phase === 'finale') { S('j_start'); if (me.pick || me.result) { me.pick = null; me.result = null; save(); } } // 다시 하는 결승전이면 이전 결과를 지움
     route();
   }
 
@@ -226,7 +226,7 @@
     if (!m.ok) { S('error'); toast(m.reason || '이미 선택된 이름이에요', 'lock'); return; }
     me.name = m.name;
     save();
-    S('v_choose');
+    S('levelup', { vol: .6 });
     route();
   }
 
@@ -269,7 +269,7 @@
       </div>
       <p class="in-text">퍼즐과 미니게임은 <b>시간을 들여 잘 풀수록</b> 능력치가 많이 올라요. 서두르지 말고 끝까지 도전해 보세요!</p></div>`,
     () => `<div class="in-l"><h2 class="in-title">${icon('swords', 34)} 최종 결전</h2>
-      <div class="in-hero sm"><img src="assets/arena_bg.jpg" alt=""><div class="in-runners">${['warrior', 'mage', 'archer', 'thief'].map(k => `<img src="${CLASSES[k].run}" alt="">`).join('')}</div></div></div>
+      <div class="in-hero sm"><img src="assets/arena_bg.jpg" alt=""><div class="in-runners">${['warrior', 'mage', 'archer', 'thief'].map(k => `<img src="${CLASSES[k].anim}run.webp" alt="">`).join('')}</div></div></div>
       <div class="in-r"><p class="in-text">모두 모험을 마치면 <b>선생님 화면</b>에서 <b>레이스</b> 또는 <b>배틀로얄</b>이 펼쳐져요.</p>
       <ul class="in-list">
         <li>내가 키운 <b>능력치를 바탕으로 등수</b>가 정해져요. (운도 조금 작용해요!)</li>
@@ -324,13 +324,14 @@
     const grid = $('#class-grid');
     grid.innerHTML = Object.entries(CLASSES).map(([k, c], i) => `
       <div class="class-card pop-in" data-k="${k}" style="animation-delay:${i * 60}ms">
-        <img class="portrait" src="${c.img}" alt="${c.name}">
+        <img class="portrait" style="--c:${c.color}" src="${c.anim}idle.webp" alt="${c.name}">
         <div class="cname">${c.name}</div>
         <div class="cdesc">${c.desc}</div>
         <div class="cstats">${STATS.map(s => `<span>${icon(s.key, 18)}${c.base[s.key]}</span>`).join('')}</div>
       </div>`).join('');
     $$('.class-card', grid).forEach(card => card.addEventListener('click', () => {
-      $$('.class-card', grid).forEach(c => c.classList.remove('sel'));
+      // 고른 캐릭터는 기술 동작을 보여 줌
+      $$('.class-card', grid).forEach(c => { c.classList.remove('sel'); const im = $('.portrait', c), k = c.dataset.k, want = CLASSES[k].anim + (c === card ? 'act' : 'idle') + '.webp'; if (im.getAttribute('src') !== want) im.src = want; });
       card.classList.add('sel');
       S('select');
       selectedClass = card.dataset.k;
@@ -356,10 +357,13 @@
     route();
   });
 
+  // 움직이는 캐릭터 그림
+  function setAnim(sel, cls, name) { const el = $(sel), c = CLASSES[cls], src = c.anim + name + '.webp'; el.classList.add('anim'); el.style.setProperty('--c', c.color); if (el.getAttribute('src') !== src) el.src = src; }
+
   // ---------- 대기실 ----------
   function renderWait() {
     const c = CLASSES[me.cls];
-    $('#wait-img').src = c.img;
+    setAnim('#wait-img', me.cls, 'idle');
     $('#wait-name').textContent = me.name;
     $('#wait-cls').innerHTML = `${icon('shield', 22)} ${c.name}`;
     renderMates();
@@ -1185,7 +1189,7 @@
     const c = CLASSES[me.cls];
     if (!c) return;
     $('#done-head').textContent = me.done ? '모험 완료!' : '모험 종료!';
-    $('#done-img').src = c.img;
+    setAnim('#done-img', me.cls, me.done ? 'cheer' : 'idle');
     $('#done-name').textContent = me.name;
     const t = G.dominantTrait(me.traits);
     $('#done-title').innerHTML = `${t ? icon(TRAITS[t].icon, 24) : ''} ${G.titleOf(me.cls, me.traits)}`;
@@ -1263,7 +1267,7 @@
     const c = CLASSES[me.cls];
     const rk = me.result.rank;
     $('#res-medal').src = `assets/icons/${rk === 1 ? 'trophy' : rk === 2 ? 'silver' : rk === 3 ? 'bronze' : 'star'}.png`;
-    $('#res-img').src = c ? c.img : '';
+    if (c) setAnim('#res-img', me.cls, rk <= 3 ? 'cheer' : 'idle');
     $('#res-name').textContent = me.name;
     $('#res-rank').textContent = `${rk}등`;
     $('#res-seat').innerHTML = `${icon('desk', 40)} 내 자리 <span class="display" style="color:var(--gold);font-size:40px">${me.result.seat}</span>번`;

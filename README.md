@@ -1,6 +1,6 @@
 # 액션 자리뽑기
 
-학생들이 텍스트 RPG처럼 17단계 모험으로 캐릭터를 키우고, 결승전(**3D 육상 레이스** 또는 **탑다운 배틀로얄**) 등수대로 자리가 정해지는 자리 배치 웹앱입니다.
+학생들이 텍스트 RPG처럼 17단계 모험으로 캐릭터를 키우고, 결승전(**3D 육상 레이스** 또는 **3D 아레나 배틀로얄**) 등수대로 자리가 정해지는 자리 배치 웹앱입니다.
 교사의 비밀 조건(떨어뜨리기·짝 만들기·자리 고정·앞/뒷자리)은 결과에 몰래 반영됩니다.
 
 ## 화면 구성
@@ -36,21 +36,26 @@
 - 다 고르면(또는 교사가 '짝 고르기 마감'을 누르면) 1~3등은 등수대로 자리를 받고, 고른 짝은 그 바로 옆자리에 앉도록 다시 계산한 뒤 결과를 발표합니다.
 - 발표 화면에는 누가 후보였는지, 누구를 골랐는지 나오지 않습니다. 끄려면 비밀 조건 탭 > 옵션에서 해제하세요.
 
-## 효과음
-`public/assets/sfx/` — Kenney.nl의 CC0(무료·출처 표기 불필요) 효과음. 관중 함성·폭발음은 Web Audio로 합성합니다.
-학생 화면 오른쪽 위, 발표 화면 도크의 스피커 버튼으로 소리를 끌 수 있습니다.
+## 그래픽·소리
+- 캐릭터: KayKit Adventurers·Skeletons (Kay Lousberg, CC0). 색·모자·악기 등을 바꿔 6직업으로 조립합니다. `public/assets/models/LICENSE.txt`
+- 효과(불·마법진·충격파 등)와 경기장은 코드로 그립니다. 효과음·배경음악도 `tools/make-sfx.js`, `tools/make-music.js`로 직접 합성했습니다(외부 음원 없음). 다시 만들기: `tools\build-audio.ps1`
+- 배경음악은 발표 화면에서만 납니다. 교사 콘솔의 '음악 끄기', '소리 끄기'로 조절하고, 학생 화면은 오른쪽 위 스피커 버튼으로 끕니다.
+- 결승전 화면 품질은 컴퓨터 속도에 맞춰 3단계로 자동 조절되고 기억됩니다(브라우저 저장소 `action-seat-gfx`: 2 높음, 1 보통, 0 낮음. 지우면 다시 측정).
 
 ## 주요 파일
 ```
 public/js/gamedata.js   직업 6종, 능력치, 모험 이벤트·갈림길·수수께끼 (내용 수정은 여기서)
 public/js/sfx.js        효과음 재생
 public/js/solver.js     자리 배정 알고리즘 (조건 만족 + 능력치 순위와 최대한 비슷하게)
-public/js/race3d.js     3D 육상 트랙 레이스 (three.js r128)
-public/js/battle2d.js   2D 탑다운 배틀로얄
+public/js/gfx/race.js    3D 육상 레이스 (three.js 0.170)
+public/js/gfx/battle.js  3D 배틀로얄·필살기 6종
+public/js/gfx/chars.js   캐릭터 조립(직업별 색·장비는 LOOKS)
+public/js/gfx/core.js    3D 무대·품질 조절·관중   fx.js 파티클 등 효과 도구
 public/js/fxkit.js      결승전 공통 HUD (컷인, 배너, 해설, 순위표, 꽃가루)
 public/js/config.js     Supabase 연결 정보
 public/css/student.css  학생 화면 배치 (태블릿 가로)
-public/assets/          Gemini로 생성한 이미지 (icons/ scenes/ sprites/ fx/)
+public/assets/          models(3D) chars(캐릭터 그림) sfx(소리) icons·scenes(Gemini로 생성한 이미지)
+tools/build-models.js   KayKit 원본을 작게 만드는 스크립트
 tools/gen-assets.ps1    에셋 시트 생성 스크립트 (원본은 tools/raw)
 tools/slice.ps1         시트를 잘라 투명 PNG로 만드는 스크립트
 serve.ps1               Node 없이 쓰는 로컬 미리보기 서버
@@ -72,7 +77,7 @@ powershell -ExecutionPolicy Bypass -File serve.ps1
 - 교사: https://action-seat.vercel.app
 - 학생: https://action-seat.vercel.app/play.html (방 화면의 QR/코드로 접속)
 
-수정 후 다시 배포하려면 (사용자 환경변수 `VERCEL_TOKEN` 필요):
+GitHub `main`에 올리면 Vercel이 자동으로 배포합니다. 직접 배포하려면 (사용자 환경변수 `VERCEL_TOKEN` 필요):
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\deploy-vercel.ps1
 ```

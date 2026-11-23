@@ -185,3 +185,9 @@
   .m10-ops { margin-top: 12px; }
   .in-stats b { font-size: 19px; }
 }
+
+/* 움직이는 캐릭터 그림 (배경은 직업 색) */
+.class-card img.portrait, .cc-img.anim { object-fit: contain !important; object-position: 50% 60% !important; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c, #8c6bff) 45%, #fff) 0%, color-mix(in srgb, var(--c, #8c6bff) 75%, #2a1d5e) 70%); }
+.in-runners img { animation: none; }
+.class-card img.portrait, .cc-img.anim { object-view-box: inset(12% 13% 5% 13%); }
+@media (orientation: landscape) and (min-width: 760px) { #res-img { width: clamp(130px, 32vh, 240px) !important; height: clamp(130px, 32vh, 240px) !important; } }

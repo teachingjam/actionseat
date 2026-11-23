@@ -1,13 +1,16 @@
-// 효과음 (Kenney.nl CC0 효과음 + Web Audio 합성음)
+// 효과음·배경음악 (tools/make-sfx.js, make-music.js 로 직접 합성한 소리)
 // SFX.play('click') / SFX.play('hit', {vol:.6, rate:1.2}) / SFX.crowd(0~1) / SFX.boom() / SFX.whoosh()
 (function () {
   const MUTE_KEY = 'action-seat-mute';
   const NAMES = ('click select confirm back error open tick type question pop drop pluck glass gain levelup power right wrong ' +
     'coin coin2 diceshake dicethrow door page latch creak sword rock rock2 crash whiff squish card cardflip shuffle slide ' +
     'step1 step2 beep go boost slip splash trip whoosh shoot fire arrow slash hit hit2 heavy kill gem ult gong zone zap ' +
-    'v_3 v_2 v_1 v_ready v_begin v_fight v_final v_winner v_multi v_combo v_sudden v_flawless v_prepare v_choose ' +
+    'ko charge quake meteor volley rhapsody judgement holyhit duel crowd cheer ' +
     'j_win j_good j_cute j_fail j_start j_chapter').split(' ');
-  const VOL = { type: .25, tick: .5, step1: .35, step2: .35, gem: .45, kill: .5, shoot: .35, fire: .45, hit: .6, hit2: .6, coin: .8 };
+  // 학생 태블릿은 결승전 소리를 받지 않음 (데이터 절약)
+  const STAGE_ONLY = new Set('step1 step2 go boost slip splash trip shoot fire arrow hit hit2 heavy kill ult gong zone zap ko charge quake meteor volley rhapsody judgement holyhit duel crowd cheer beep'.split(' '));
+  const isStudent = /play\.html/.test(location.pathname);
+  const VOL = { type: .5, tick: .6, step1: .4, step2: .4, gem: .5, kill: .5, shoot: .4, fire: .6, hit: .6, hit2: .6, heavy: .75, quake: .85, meteor: .85 };
 
   let ctx = null, master = null, muted = false;
   const buffers = {}, loading = {};
@@ -33,7 +36,7 @@
       .catch(() => null);
     return loading[name];
   }
-  function preload(list) { if (!ensure()) return; (list || NAMES).forEach(load); }
+  function preload(list) { if (!ensure()) return; (list || (isStudent ? NAMES.filter(n => !STAGE_ONLY.has(n)) : NAMES)).forEach(load); }
 
   // 브라우저 자동재생 제한: 첫 터치/클릭/키 입력 때 오디오를 깨움
   function unlock() {
@@ -61,7 +64,7 @@
     let node = g;
     if (o.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, o.pan)); g.connect(p); node = p; }
     src.connect(g); node.connect(master);
-    src.start(ctx.currentTime + (o.delay || 0));
+    src.start(ctx.currentTime + (o.delay || 0), o.offset || 0);
   }
 
   // ---------- 합성음 ----------
@@ -105,30 +108,37 @@
     crowdLevel = level;
     if (!crowdNodes) {
       if (level <= 0) return;
-      const n = ctx.createBufferSource(); n.buffer = noise(); n.loop = true;
-      const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 900; f1.Q.value = .6;
-      const f2 = ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 2600;
-      const g = ctx.createGain(); g.gain.value = 0;
-      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .35; lg.gain.value = 250;
-      lfo.connect(lg); lg.connect(f1.frequency); lfo.start();
-      n.connect(f1); f1.connect(f2); f2.connect(g); g.connect(master); n.start();
-      crowdNodes = { n, g, lfo };
+      const b = buffers.crowd; // 여러 목소리를 겹쳐 만든 함성 (반복 재생)
+      if (!b) { const p = load('crowd'); if (p) p.then(x => { if (x && !crowdNodes && crowdLevel > 0) { const lv = crowdLevel; crowdLevel = -1; crowd(lv, 1); } }); return; }
+      const n = ctx.createBufferSource(); n.buffer = b; n.loop = true;
+      const g = ctx.createGain(); g.gain.value = 0; n.connect(g); g.connect(master); n.start();
+      crowdNodes = { n, g };
     }
     const t = ctx.currentTime;
     crowdNodes.g.gain.cancelScheduledValues(t);
     crowdNodes.g.gain.setValueAtTime(crowdNodes.g.gain.value, t);
-    crowdNodes.g.gain.linearRampToValueAtTime(Math.max(0, level) * .22, t + (ramp != null ? ramp : .6));
+    crowdNodes.g.gain.linearRampToValueAtTime(Math.max(0, level) * .30, t + (ramp != null ? ramp : .6));
   }
   function cheer() {
-    if (muted || !ensure()) return;
-    if (!crowdNodes) { crowd(.02, .1); crowdLevel = 0; }
-    if (!crowdNodes) return;
+    play('cheer', { vol: .55, gap: 900, vary: .08 });
+    if (muted || !crowdNodes) return;
     const t = ctx.currentTime, g = crowdNodes.g.gain, cur = g.value;
     g.cancelScheduledValues(t); g.setValueAtTime(cur, t);
     // 환호가 끝나면 원래 함성 크기로 돌아감 (예전엔 조용한 화면에서도 웅성거림이 계속 남았음)
-    g.linearRampToValueAtTime(.3, t + .25); g.linearRampToValueAtTime(Math.max(0, crowdLevel) * .22, t + 2.4);
+    g.linearRampToValueAtTime(.4, t + .25); g.linearRampToValueAtTime(Math.max(0, crowdLevel) * .30, t + 2.4);
   }
-  function stopAll() { crowd(0, .3); }
+  function stopAll() { crowd(0, .3); music(null); }
+  // 배경음악 (발표 화면에서만 사용). 이름을 주면 서서히 바꾸고, null이면 끔
+  let mus = null, musName = null, musMuted = false;
+  try { musMuted = localStorage.getItem(MUTE_KEY + '-music') === '1'; } catch (e) {}
+  function music(name, vol) {
+    if (name === musName || !ensure()) return; musName = name;
+    const t = ctx.currentTime; if (mus) { const m = mus; mus = null; m.g.gain.cancelScheduledValues(t); m.g.gain.setValueAtTime(m.g.gain.value, t); m.g.gain.linearRampToValueAtTime(0, t + 1.2); setTimeout(() => { try { m.s.stop(); } catch (e) {} }, 1400); }
+    if (!name) return;
+    const want = name, p = buffers[name] ? Promise.resolve(buffers[name]) : load(name);
+    if (p) p.then(b => { if (!b || musName !== want || mus) return; const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b; s.loop = true; g.gain.value = 0; s.connect(g); g.connect(master); s.start(); g.gain.linearRampToValueAtTime(musMuted ? 0 : (vol || .42), ctx.currentTime + 1.5); mus = { s, g, vol: vol || .42 }; });
+  }
+  function setMusicMuted(m) { musMuted = !!m; try { localStorage.setItem(MUTE_KEY + '-music', musMuted ? '1' : '0'); } catch (e) {} if (mus) { mus.g.gain.cancelScheduledValues(ctx.currentTime); mus.g.gain.linearRampToValueAtTime(musMuted ? 0 : mus.vol, ctx.currentTime + .4); } }
 
   function setMuted(m) {
     muted = !!m;
@@ -137,7 +147,7 @@
     document.querySelectorAll('[data-sfx-toggle] img').forEach(i => { i.src = 'assets/icons/' + (muted ? 'mute' : 'sound') + '.png'; });
   }
   // 다른 창(콘솔↔발표 화면)에서 음소거를 바꾸면 따라감
-  window.addEventListener('storage', e => { if (e.key === MUTE_KEY) setMuted(e.newValue === '1'); });
+  window.addEventListener('storage', e => { if (e.key === MUTE_KEY) setMuted(e.newValue === '1'); if (e.key === MUTE_KEY + '-music') setMusicMuted(e.newValue === '1'); });
 
   // 버튼 공통 클릭음
   document.addEventListener('click', e => {
@@ -147,7 +157,7 @@
   }, true);
 
   window.SFX = {
-    play, preload, boom, whoosh, crowd, cheer, stopAll, unlock,
+    play, preload, boom, whoosh, crowd, cheer, stopAll, unlock, music, setMusicMuted, get musicMuted() { return musMuted; },
     get muted() { return muted; }, setMuted, toggle() { setMuted(!muted); return muted; },
     get ready() { return !!ctx && ctx.state === 'running'; },
     setBase(b) { base = b; }

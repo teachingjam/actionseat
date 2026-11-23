@@ -7,7 +7,7 @@ $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
 Write-Host "Serving $root at http://localhost:$Port/"
 $types = @{ '.html'='text/html; charset=utf-8'; '.js'='application/javascript; charset=utf-8'; '.css'='text/css; charset=utf-8';
-  '.jpg'='image/jpeg'; '.png'='image/png'; '.svg'='image/svg+xml'; '.json'='application/json'; '.ico'='image/x-icon' }
+  '.jpg'='image/jpeg'; '.png'='image/png'; '.svg'='image/svg+xml'; '.json'='application/json'; '.ico'='image/x-icon'; '.webp'='image/webp'; '.ogg'='audio/ogg'; '.glb'='model/gltf-binary' }
 while ($listener.IsListening) {
   $ctx = $listener.GetContext()
   try {

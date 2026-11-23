@@ -10,22 +10,22 @@
   const STAT_NAME = { str: '힘', agi: '민첩', int: '지능', luk: '행운', vit: '체력' };
 
   const CLASSES = {
-    warrior: { name: '전사', img: 'assets/warrior.jpg', run: 'assets/sprites/run_warrior.png', color: '#ff6b6b',
+    warrior: { name: '전사', img: 'assets/chars/warrior.webp', anim: 'assets/chars/warrior_', cut: 'assets/chars/cut_warrior.webp', color: '#ff6b6b',
       base: { str: 5, agi: 2, int: 1, luk: 2, vit: 4 }, desc: '튼튼한 몸과 강력한 한 방!',
       skills: { str: '대지 가르기', agi: '돌진 베기', int: '전술 지휘', luk: '기적의 방패', vit: '철벽 수호' } },
-    mage: { name: '마법사', img: 'assets/mage.jpg', run: 'assets/sprites/run_mage.png', color: '#b48cff',
+    mage: { name: '마법사', img: 'assets/chars/mage.webp', anim: 'assets/chars/mage_', cut: 'assets/chars/cut_mage.webp', color: '#b48cff',
       base: { str: 1, agi: 2, int: 6, luk: 3, vit: 2 }, desc: '번뜩이는 지혜로 마법을 부려요.',
       skills: { str: '메테오', agi: '순간이동', int: '파이어볼', luk: '행운의 별빛', vit: '마나 실드' } },
-    archer: { name: '궁수', img: 'assets/archer.jpg', run: 'assets/sprites/run_archer.png', color: '#7be07b',
+    archer: { name: '궁수', img: 'assets/chars/archer.webp', anim: 'assets/chars/archer_', cut: 'assets/chars/cut_archer.webp', color: '#7be07b',
       base: { str: 2, agi: 6, int: 2, luk: 2, vit: 2 }, desc: '바람처럼 빠르고 정확해요.',
       skills: { str: '관통 화살', agi: '질풍 화살', int: '매의 눈', luk: '럭키 샷', vit: '숲의 숨결' } },
-    thief: { name: '도적', img: 'assets/thief.jpg', run: 'assets/sprites/run_thief.png', color: '#4dd4ff',
+    thief: { name: '도적', img: 'assets/chars/thief.webp', anim: 'assets/chars/thief_', cut: 'assets/chars/cut_thief.webp', color: '#4dd4ff',
       base: { str: 2, agi: 4, int: 2, luk: 5, vit: 1 }, desc: '날쌘 몸놀림과 엄청난 운!',
       skills: { str: '급소 찌르기', agi: '그림자 질주', int: '함정 설치', luk: '대박 훔치기', vit: '연막탄' } },
-    bard: { name: '음유시인', img: 'assets/bard.jpg', run: 'assets/sprites/run_bard.png', color: '#ffb84d',
+    bard: { name: '음유시인', img: 'assets/chars/bard.webp', anim: 'assets/chars/bard_', cut: 'assets/chars/cut_bard.webp', color: '#ffb84d',
       base: { str: 1, agi: 3, int: 3, luk: 4, vit: 3 }, desc: '노래 한 곡으로 분위기를 뒤집어요.',
       skills: { str: '록 스피릿', agi: '경쾌한 스텝', int: '혼란의 선율', luk: '앙코르!', vit: '응원가' } },
-    cleric: { name: '성직자', img: 'assets/cleric.jpg', run: 'assets/sprites/run_cleric.png', color: '#ffe066',
+    cleric: { name: '성직자', img: 'assets/chars/cleric.webp', anim: 'assets/chars/cleric_', cut: 'assets/chars/cut_cleric.webp', color: '#ffe066',
       base: { str: 2, agi: 1, int: 4, luk: 2, vit: 5 }, desc: '빛의 힘으로 끝까지 버텨요.',
       skills: { str: '심판의 망치', agi: '빛의 날개', int: '성스러운 빛', luk: '축복', vit: '대회복' } }
   };

@@ -39,6 +39,7 @@
     const H = {
       el, canvas: q('canvas.main'), overlay: q('.overlay'), tags: q('.name-tags'),
       lastComment: 0, confetti: [], destroyed: false,
+      loading(on) { const l = el.querySelector('.fin-load'); if (on && !l) el.insertAdjacentHTML('beforeend', '<div class="fin-load"><div class="spinner"></div><p>경기장을 준비하고 있어요…</p></div>'); if (!on && l) l.remove(); },
       comment(text, ic, force) {
         const now = performance.now();
         if (!force && now - H.lastComment < 700) return;
@@ -61,7 +62,7 @@
         if (window.SFX) { SFX.play('ult'); SFX.whoosh({ up: true, vol: .45 }); }
         const c = CLASSES[p.cls] || CLASSES.warrior;
         const w = q('.cutin-wrap');
-        w.innerHTML = `<div class="cutin"><div class="ci-band"></div><img class="ci-img" src="${c.run}" alt="">
+        w.innerHTML = `<div class="cutin"><div class="ci-band"></div><img class="ci-img" src="${c.cut}" alt="">
           <div class="ci-text">${esc(skill)}!<small>${esc(p.name)} · ${c.name}</small></div></div>`;
         setTimeout(() => { if (w.firstChild) w.innerHTML = ''; }, 1600);
       },
@@ -74,9 +75,8 @@
             if (H.destroyed) return res();
             if (i >= seq.length) { box.innerHTML = ''; return res(); }
             if (window.SFX) {
-              const w = seq[i];
-              if (i === seq.length - 1) { SFX.play('go'); SFX.play(/FIGHT/i.test(w) ? 'v_fight' : 'v_begin'); SFX.cheer(); }
-              else { SFX.play('beep'); if (w === '3' || w === '2' || w === '1') SFX.play('v_' + w, { vol: .9 }); }
+              if (i === seq.length - 1) { SFX.play('go'); SFX.cheer(); }
+              else SFX.play('beep', { rate: 1 + i * .06 });
             }
             box.innerHTML = `<span class="grad-text">${seq[i]}</span>`;
             i++;

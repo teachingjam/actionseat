@@ -403,6 +403,7 @@
     if (ph === 'pick') A.push(['pickEnd', 'flag', '짝 고르기 마감', 'green']);
     if (ph === 'result') { A.push(['send', 'phone', '학생에게 전송', 'green']); A.push(['print', 'printer', '인쇄', 'secondary']); A.push(['rematch', 'dice', '다른 종목', 'secondary']); A.push(['finish', 'chest', '저장하고 끝내기', 'danger']); }
     A.push(['sound', SFX.muted ? 'mute' : 'sound', SFX.muted ? '소리 켜기' : '소리 끄기', 'ghost']);
+    A.push(['music', SFX.musicMuted ? 'mute' : 'megaphone', SFX.musicMuted ? '음악 켜기' : '음악 끄기', 'ghost']);
     if (where === 'console') {
       A.push(['popup', 'megaphone', popupAlive ? '발표 창 앞으로' : '발표 창 열기', 'secondary']);
       A.push(['stage', 'door', '이 창에서 발표', 'ghost']);
@@ -465,6 +466,7 @@
         R.result = null; R.race = null; R.pick = null; R.pairs = null; R.pickNote = ''; R.resultSent = false; setRun(null); setPhase('finale'); break;
       case 'finish': finish(); break;
       case 'sound': SFX.toggle(); stageBC.postMessage({ t: 'mute', on: SFX.muted }); renderDock(); renderGame(); break;
+      case 'music': SFX.setMusicMuted(!SFX.musicMuted); stageBC.postMessage({ t: 'music', off: SFX.musicMuted }); renderDock(); renderGame(); break;
       case 'stage': enterStage(); break;
       case 'popup': openPopup(); break;
       case 'console': exitStage(); break;

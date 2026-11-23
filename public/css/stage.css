@@ -106,7 +106,7 @@
 .speedlines { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; }
 .cutin { position: absolute; left: 0; right: 0; top: 50%; height: 190px; transform: translateY(-50%); pointer-events: none; overflow: hidden; }
 .cutin .ci-band { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,95,162,.92) 10%, rgba(140,107,255,.92) 90%, transparent); transform: skewY(-4deg); animation: ciBand 1.5s cubic-bezier(.2,1,.3,1) forwards; box-shadow: 0 0 60px rgba(255,95,162,.6); }
-.cutin .ci-img { position: absolute; left: 12%; top: 50%; height: 260px; transform: translateY(-50%); animation: ciImg 1.5s cubic-bezier(.2,1,.3,1) forwards; filter: drop-shadow(0 10px 20px rgba(0,0,0,.5)); }
+.cutin .ci-img { position: absolute; left: 8%; top: 52%; height: 400px; transform: translateY(-50%); animation: ciImg 1.5s cubic-bezier(.2,1,.3,1) forwards; filter: drop-shadow(0 10px 20px rgba(0,0,0,.5)); }
 .cutin .ci-text { position: absolute; left: 34%; top: 50%; transform: translateY(-50%); font-family: var(--display); font-size: 74px; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,.5); animation: ciText 1.5s cubic-bezier(.2,1,.3,1) forwards; white-space: nowrap; }
 .cutin .ci-text small { display: block; font-family: 'Jua'; font-size: 28px; }
 @keyframes ciBand { 0% { transform: skewY(-4deg) scaleY(0); } 12% { transform: skewY(-4deg) scaleY(1); } 85% { transform: skewY(-4deg) scaleY(1); opacity: 1; } 100% { transform: skewY(-4deg) scaleY(0); opacity: 0; } }
@@ -120,7 +120,14 @@
 .alive-box { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 22px; border-radius: 18px; background: rgba(10,6,30,.8); border: 2px solid rgba(255,207,74,.6); font-family: var(--display); font-size: 34px; }
 .alive-box .ico { width: 44px; height: 44px; }
 .name-tags { position: absolute; inset: 0; pointer-events: none; }
-.ntag { position: absolute; transform: translate(-50%, -100%); font-family: 'Jua'; font-size: 15px; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px #000; white-space: nowrap; display: flex; align-items: center; gap: 2px; }
+.fin-load { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #0b0920; font-family: 'Jua'; font-size: 26px; }
+.ntag { position: absolute; left: 0; top: 0; will-change: transform; transform: translate(-50%, -100%); font-family: 'Jua'; font-size: 15px; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px #000; white-space: nowrap; display: flex; align-items: center; gap: 2px; }
+.ntag.hp { flex-direction: column; gap: 2px; }
+.ntag.hp > i { display: block; width: 4.4em; height: .42em; padding: 1px; border-radius: 6px; background: rgba(0,0,0,.7); }
+.ntag.hp > i > b { display: block; height: 100%; width: 100%; border-radius: 5px; background: #4ff0a0; transition: width .25s; }
+.fl3 { position: absolute; left: 0; top: 0; font-family: var(--display); font-size: 34px; color: #ff5a6e; -webkit-text-stroke: 6px rgba(20,6,30,.85); paint-order: stroke fill; white-space: nowrap; will-change: transform; }
+.fl3.big { font-size: 58px; color: #ffcf4a; }
+.fl3.rank { font-size: 46px; color: #fff; }
 .ntag.top { font-size: 18px; color: var(--gold); }
 .ntag .ico { width: 22px; height: 22px; }
 

@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/stage.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
 </head>
 <body class="stage-body">
 <div class="aurora"><div class="grid"></div></div>
@@ -69,7 +70,7 @@
         <h3>3D 육상 대운동회</h3><p>허들, 바나나, 진흙탕, 부스터! 엎치락뒤치락 트랙 레이스</p>
       </div>
       <div class="mode-card" data-mode="battle">
-        <div class="mc-icons"><img src="assets/fx/fx_fireball.png" alt=""><img src="assets/icons/swords.png" alt=""><img src="assets/fx/fx_lightning.png" alt=""></div>
+        <div class="mc-icons"><img src="assets/icons/shield.png" alt=""><img src="assets/icons/swords.png" alt=""><img src="assets/icons/bolt.png" alt=""></div>
         <h3>아레나 배틀로얄</h3><p>몬스터 떼와 화려한 스킬! 최후의 1인을 가려라</p>
       </div>
     </div>
@@ -103,13 +104,11 @@
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/gamedata.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/fxkit.js"></script>
-<script src="js/race3d.js"></script>
-<script src="js/battle2d.js"></script>
+<script type="module" src="js/gfx/index.js"></script>
 <script src="js/stage.js"></script>
 </body>
 </html>
