@@ -13,7 +13,9 @@
   let selectedClass = null;
   let lastUpdateSent = 0;
 
-  function save() { store(KEY, me); }
+  let left = false;    // 방이 닫혔거나 내보내진 상태: 남은 타이머·메시지가 다시 저장하거나 화면을 바꾸지 못하게 함
+  function save() { if (!left) store(KEY, me); }
+  function leaveRoom() { left = true; stopTimers(); clearInterval(helloTimer); store(KEY, null); Net.leave(); }
 
   // ---------- 소리 켜기/끄기 ----------
   $$('[data-sfx-toggle]').forEach(b => {
@@ -32,6 +34,7 @@
   $('#btn-join').addEventListener('click', join);
 
   async function join() {
+    if ($('#btn-join').disabled) return;
     const code = $('#code').value.trim();
     $('#join-err').textContent = '';
     if (!/^\d{6}$/.test(code)) { $('#join-err').textContent = '6자리 숫자 코드를 입력해 주세요.'; S('error'); return; }
@@ -42,7 +45,8 @@
     $('#btn-join').disabled = true;
     $('#btn-join').textContent = '연결 중…';
     try {
-      await Net.connect(code, onMessage);
+      // 태블릿 화면이 꺼졌다 켜지는 등 연결이 다시 붙으면 현재 상태를 다시 물어봄
+      await Net.connect(code, onMessage, st => { if (st === 'SUBSCRIBED' && welcomed) sendHello(); });
     } catch (e) {
       $('#join-err').textContent = e.message;
       resetJoinBtn();
@@ -66,13 +70,21 @@
     }, 2500);
   }
   function resetJoinBtn() { $('#btn-join').disabled = false; $('#btn-join').textContent = '입장하기'; }
-  function sendHello() { Net.send('hello', { token: me.token }); }
+  function sendHello() { if (!left) Net.send('hello', { token: me.token }); }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && welcomed) sendHello(); });
+
+  // ---------- 전체 화면 (태블릿에서 주소창을 숨겨 화면을 넓게) ----------
+  const fsBtn = $('#fs-btn');
+  if (document.fullscreenEnabled) {
+    fsBtn.classList.remove('hidden');
+    fsBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); });
+  }
 
   if (codeParam || (me && me.code && me.name)) setTimeout(join, 150);
 
   // ---------- 메시지 ----------
   function onMessage(m) {
-    if (m.to && m.to !== me.token) return;
+    if (left || (m.to && m.to !== me.token)) return;
     switch (m.type) {
       case 'welcome': return onWelcome(m);
       case 'claimResult': return onClaim(m);
@@ -80,6 +92,7 @@
       case 'result': return onResult(m);
       case 'pickStart':
         if (me.pick && me.pick.id === m.pickId && me.pick.done) return;
+        if (phase === 'pick' && me.pick && me.pick.id === m.pickId && $('#v-pick:not(.hidden)')) return; // 이미 고르는 중이면 다시 그리지 않음
         if (!me.pick || me.pick.id !== m.pickId) { me.pick = { id: m.pickId, rank: m.rank, cands: m.cands, done: false, revealed: false }; save(); }
         phase = 'pick';
         return route();
@@ -89,11 +102,11 @@
         if (phase === 'pick') route();
         return;
       case 'closed':
-        store(KEY, null);
-        if (me.result) return;
+        leaveRoom();
+        if (me.result) { $('#res-again').classList.remove('hidden'); return; }
         return showMsg('방이 닫혔어요', '선생님이 게임을 종료했어요.');
       case 'kick':
-        store(KEY, null);
+        leaveRoom();
         return showMsg('퇴장', '선생님이 참가를 취소했어요. 다시 입장해 주세요.');
       case 'ping':
         return sendHello();
@@ -102,10 +115,12 @@
 
   let roster = [], claimed = [], players = [];
   function onWelcome(m) {
+    const prev = phase;
     phase = m.phase;
     if (welcomed) {
+      // 다시 연결된 것뿐이면 풀던 문제를 처음부터 다시 시작하지 않음
       if (me.name && !m.known) Net.send('reclaim', profile());
-      route();
+      if (prev !== phase) enterPhase();
       return;
     }
     welcomed = true;
@@ -129,11 +144,12 @@
     if (!welcomed) return;
     if ($('#v-name:not(.hidden)')) renderNames();
     if ($('#v-wait:not(.hidden)')) { renderMates(); if (players.length > before) S('pluck', { vary: .3 }); }
-    if (prev !== phase) {
-      if (phase === 'quest') S('j_chapter');
-      if (phase === 'finale') { S('v_prepare'); if (me.pick) { me.pick = null; save(); } }
-      route();
-    }
+    if (prev !== phase) enterPhase();
+  }
+  function enterPhase() {
+    if (phase === 'quest') S('j_chapter');
+    if (phase === 'finale') { S('v_prepare'); if (me.pick || me.result) { me.pick = null; me.result = null; save(); } } // 다시 하는 결승전이면 이전 결과를 지움
+    route();
   }
 
   function profile() {
@@ -149,8 +165,15 @@
   // ---------- 라우팅 ----------
   function route() {
     if (!me.name) {
-      if (phase === 'finale' || phase === 'result') return showMsg('이미 진행 중이에요', '게임이 이미 결승전에 들어갔어요. 선생님께 말씀드려 주세요.');
+      if (phase === 'finale' || phase === 'pick' || phase === 'result') return showMsg('이미 진행 중이에요', '게임이 이미 결승전에 들어갔어요. 선생님께 말씀드려 주세요.');
       renderNames(); show('v-name'); return;
+    }
+    if (!me.cls && (phase === 'finale' || phase === 'pick' || phase === 'result')) {
+      // 직업을 고르기 전에 결승전이 시작된 학생: 무작위 직업으로 참가 중
+      stopTimers();
+      if (phase === 'pick' && me.pick && !me.pick.done) { renderPick(); return show('v-pick'); }
+      if (phase === 'result' && me.result) return renderResult();
+      return showMsg('선생님 화면을 보세요!', '결승전이 이미 시작되어 무작위 캐릭터로 참가하고 있어요.');
     }
     if (!me.cls) {
       if (!me.introDone) { renderIntro(); show('v-intro'); return; }
@@ -181,7 +204,9 @@
     if (roster.length) {
       $('#name-free').classList.add('hidden');
       grid.classList.remove('hidden');
-      grid.innerHTML = roster.map(n => `<button class="name-btn" data-n="${esc(n)}" ${claimed.includes(n) ? 'disabled' : ''}>${esc(n)}</button>`).join('');
+      const html = roster.map(n => `<button class="name-btn" data-n="${esc(n)}" ${claimed.includes(n) ? 'disabled' : ''}>${esc(n)}</button>`).join('');
+      if (grid._html === html) return;
+      grid._html = html; grid.innerHTML = html;
       $$('.name-btn', grid).forEach(b => b.addEventListener('click', async () => {
         S('open');
         const ok = await UI.confirm(`<b>${esc(b.dataset.n)}</b> 맞나요?<br>다른 친구 이름을 고르면 안 돼요!`, { icon: 'group', ok: '네, 저예요' });
@@ -208,56 +233,56 @@
   // ---------- 게임 설명 (한 장씩 넘기기) ----------
   const flowStep = (ic, t) => `<div class="fl-step">${icon(ic, 44)}<span>${t}</span></div>`;
   const INTRO = [
-    () => `<div class="in-hero"><img src="assets/title_bg.jpg" alt=""><div class="in-hero-t"><span class="grad-text">액션 자리뽑기</span></div></div>
-      <h2 class="in-title">모험을 떠나 자리를 차지하라!</h2>
+    () => `<div class="in-l"><div class="in-hero"><img src="assets/title_bg.jpg" alt=""><div class="in-hero-t"><span class="grad-text">액션 자리뽑기</span></div></div></div>
+      <div class="in-r"><h2 class="in-title">모험을 떠나 자리를 차지하라!</h2>
       <p class="in-text">캐릭터를 골라 모험을 하면서 <b>능력치</b>를 키우고, 마지막 <b>최종 결전</b>에서 좋은 등수를 노려 보세요.</p>
-      <div class="flow">${flowStep('shield', '직업 선택')}<i>▶</i>${flowStep('map', `모험 ${TOTAL_STEPS}단계`)}<i>▶</i>${flowStep('swords', '최종 결전')}<i>▶</i>${flowStep('desk', '자리 발표')}</div>`,
-    () => `<h2 class="in-title">${icon('shield', 34)} 직업과 능력치</h2>
+      <div class="flow">${flowStep('shield', '직업 선택')}<i>▶</i>${flowStep('map', `모험 ${TOTAL_STEPS}단계`)}<i>▶</i>${flowStep('swords', '최종 결전')}<i>▶</i>${flowStep('desk', '자리 발표')}</div></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('shield', 34)} 직업과 능력치</h2>
       <div class="in-classes">${Object.values(CLASSES).map(c => `<div><img src="${c.img}" alt=""><small>${c.name}</small></div>`).join('')}</div>
-      <p class="in-text">직업마다 처음 능력치가 달라요. 능력치는 5가지예요.</p>
-      <div class="in-stats">
+      <p class="in-text">직업마다 처음 능력치가 달라요. 능력치는 5가지예요.</p></div>
+      <div class="in-r"><div class="in-stats">
         <div>${icon('str', 30)}<b>힘</b><span>배틀, 바위 깨기</span></div>
         <div>${icon('agi', 30)}<b>민첩</b><span>레이스에서 가장 중요</span></div>
         <div>${icon('int', 30)}<b>지능</b><span>배틀, 퍼즐 판정</span></div>
         <div>${icon('luk', 30)}<b>행운</b><span>레이스, 행운 판정</span></div>
         <div>${icon('vit', 30)}<b>체력</b><span>배틀에서 끝까지 버티기</span></div>
-      </div>`,
-    () => `<h2 class="in-title">${icon('compass', 34)} 갈림길에서 길 고르기</h2>
-      <img class="in-scene" src="assets/scenes/s_crossroads.jpg" alt="">
+      </div></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('compass', 34)} 갈림길에서 길 고르기</h2>
+      <img class="in-scene" src="assets/scenes/s_crossroads.jpg" alt=""></div><div class="in-r">
       <p class="in-text">모험 중 <b>갈림길</b>이 3번 나와요. 고른 길에 따라 만나는 사건이 달라져서 친구마다 모험이 달라요.</p>
       <div class="in-paths">${['safe', 'brain', 'market', 'risk'].map(k => { const p = PATHS[k]; return `<div class="in-path">${icon(p.icon, 34)}<b>${p.name}</b><span class="stars">${'★'.repeat(p.risk)}<em>${'★'.repeat(3 - p.risk)}</em></span></div>`; }).join('')}</div>
-      <div class="in-note">${icon('star', 28)}<span><b>별이 많을수록</b> 능력치를 크게 얻을 수 있지만, <b>잃을 수도 있고</b> 더 많은 노력이 필요해요!</span></div>`,
-    () => `<h2 class="in-title">${icon('dice', 34)} 주사위 판정</h2>
-      <div class="in-dice"><div class="d20 ok"><span>17</span></div><div class="in-dice-eq">주사위 17 + 보너스 3<br>= <b>20</b> (목표 12)<br><b class="ok-t">성공!</b></div></div>
-      <p class="in-text">선택지에 <span class="ctag">${icon('str', 18)}힘 판정 ★★</span> 이 붙어 있으면 주사위를 굴려요.</p>
+      <div class="in-note">${icon('star', 28)}<span><b>별이 많을수록</b> 능력치를 크게 얻을 수 있지만, <b>잃을 수도 있고</b> 더 많은 노력이 필요해요!</span></div></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('dice', 34)} 주사위 판정</h2>
+      <div class="in-dice"><div class="d20 ok"><span>17</span></div><div class="in-dice-eq">주사위 17 + 보너스 3<br>= <b>20</b> (목표 12)<br><b class="ok-t">성공!</b></div></div></div>
+      <div class="in-r"><p class="in-text">선택지에 <span class="ctag">${icon('str', 18)}힘 판정 ★★</span> 이 붙어 있으면 주사위를 굴려요.</p>
       <ul class="in-list">
         <li><b>주사위(1~20) + 능력치 보너스</b>가 목표보다 크거나 같으면 성공!</li>
         <li>별이 많을수록 목표 숫자가 높아요(어려워요).</li>
         <li><b class="crit-t">20</b>이 나오면 대성공, <b class="bad-t">1</b>이 나오면 대실패!</li>
         <li>실패하면 능력치가 깎이기도 해요.</li>
-      </ul>`,
-    () => `<h2 class="in-title">${icon('coin', 34)} 골드와 퍼즐</h2>
-      <div class="in-note">${icon('coin', 40)}<span>사건에서 <b>골드</b>를 모아 상점에서 아이템을 사거나 도박을 할 수 있어요. 남은 골드는 마지막에 <b>행운</b>으로 바뀌어요.</span></div>
-      <div class="in-icons">
+      </ul></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('coin', 34)} 골드와 퍼즐</h2>
+      <div class="in-note">${icon('coin', 40)}<span>사건에서 <b>골드</b>를 모아 상점에서 아이템을 사거나 도박을 할 수 있어요. 남은 골드는 마지막에 <b>행운</b>으로 바뀌어요.</span></div></div>
+      <div class="in-r"><div class="in-icons">
         <div>${icon('puzzle', 40)}<small>10 만들기</small></div><div>${icon('scroll', 40)}<small>초성 퀴즈</small></div><div>${icon('bulb', 40)}<small>창의력</small></div>
         <div>${icon('card', 40)}<small>짝 맞추기</small></div><div>${icon('str', 40)}<small>바위 깨기</small></div><div>${icon('tap', 40)}<small>슬라임 잡기</small></div>
       </div>
-      <p class="in-text">퍼즐과 미니게임은 <b>시간을 들여 잘 풀수록</b> 능력치가 많이 올라요. 서두르지 말고 끝까지 도전해 보세요!</p>`,
-    () => `<h2 class="in-title">${icon('swords', 34)} 최종 결전</h2>
-      <div class="in-hero sm"><img src="assets/arena_bg.jpg" alt=""><div class="in-runners">${['warrior', 'mage', 'archer', 'thief'].map(k => `<img src="${CLASSES[k].run}" alt="">`).join('')}</div></div>
-      <p class="in-text">모두 모험을 마치면 <b>선생님 화면</b>에서 <b>레이스</b> 또는 <b>배틀로얄</b>이 펼쳐져요.</p>
+      <p class="in-text">퍼즐과 미니게임은 <b>시간을 들여 잘 풀수록</b> 능력치가 많이 올라요. 서두르지 말고 끝까지 도전해 보세요!</p></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('swords', 34)} 최종 결전</h2>
+      <div class="in-hero sm"><img src="assets/arena_bg.jpg" alt=""><div class="in-runners">${['warrior', 'mage', 'archer', 'thief'].map(k => `<img src="${CLASSES[k].run}" alt="">`).join('')}</div></div></div>
+      <div class="in-r"><p class="in-text">모두 모험을 마치면 <b>선생님 화면</b>에서 <b>레이스</b> 또는 <b>배틀로얄</b>이 펼쳐져요.</p>
       <ul class="in-list">
         <li>내가 키운 <b>능력치를 바탕으로 등수</b>가 정해져요. (운도 조금 작용해요!)</li>
         <li>레이스는 <b>민첩·행운</b>, 배틀은 <b>힘·지능·체력</b>이 특히 중요해요.</li>
-      </ul>`,
-    () => `<h2 class="in-title">${icon('desk', 34)} 등수대로 자리 발표</h2>
-      <div class="in-podium"><div class="p2">${icon('silver', 50)}<b>2등</b><span>2번 자리</span></div><div class="p1">${icon('trophy', 60)}<b>1등</b><span>1번 자리</span></div><div class="p3">${icon('bronze', 50)}<b>3등</b><span>3번 자리</span></div></div>
-      <p class="in-text">등수가 높을수록 먼저 자리를 받아요. <b>1등은 1번 자리</b>, 2등은 2번 자리…<br>자리 번호는 선생님이 미리 정해 둔 순서예요. 몇 번이 어느 자리인지는 결과가 나올 때 알 수 있어요!</p>`,
-    () => `<h2 class="in-title">${icon('heart', 34)} 1·2·3등 특별 보상</h2>
-      <div class="in-plates"><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div></div>
-      <p class="in-text">1~3등은 <b>짝꿍을 고를 수 있어요!</b> 무작위로 뽑힌 후보가 번호판처럼 공개되고, 그중 한 명을 골라요.</p>
+      </ul></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('desk', 34)} 등수대로 자리 발표</h2>
+      <div class="in-podium"><div class="p2">${icon('silver', 50)}<b>2등</b><span>2번 자리</span></div><div class="p1">${icon('trophy', 60)}<b>1등</b><span>1번 자리</span></div><div class="p3">${icon('bronze', 50)}<b>3등</b><span>3번 자리</span></div></div></div>
+      <div class="in-r"><p class="in-text">등수가 높을수록 먼저 자리를 받아요. <b>1등은 1번 자리</b>, 2등은 2번 자리…<br>자리 번호는 선생님이 미리 정해 둔 순서예요. 몇 번이 어느 자리인지는 결과가 나올 때 알 수 있어요!</p></div>`,
+    () => `<div class="in-l"><h2 class="in-title">${icon('heart', 34)} 1·2·3등 특별 보상</h2>
+      <div class="in-plates"><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div><div class="pk-plate"><span class="pk-name">? ? ?</span></div></div></div>
+      <div class="in-r"><p class="in-text">1~3등은 <b>짝꿍을 고를 수 있어요!</b> 무작위로 뽑힌 후보가 번호판처럼 공개되고, 그중 한 명을 골라요.</p>
       <div class="in-bonus"><div>${icon('trophy', 36)}<b>1등</b><span>후보 5명</span></div><div>${icon('silver', 36)}<b>2등</b><span>후보 4명</span></div><div>${icon('bronze', 36)}<b>3등</b><span>후보 3명</span></div></div>
-      <p class="in-text muted">고른 친구는 내 짝 자리에 앉아요. 자, 이제 직업을 골라 볼까요?</p>`
+      <p class="in-text muted">고른 친구는 내 짝 자리에 앉아요. 자, 이제 직업을 골라 볼까요?</p></div>`
   ];
   let introIdx = 0;
   function renderIntro(dir) {
@@ -340,8 +365,9 @@
     renderMates();
   }
   function renderMates() {
-    $('#mates').innerHTML = players.filter(p => p.cls).map(p => `
+    const html = players.filter(p => p.cls).map(p => `
       <div class="mate"><img class="avatar sm" src="${CLASSES[p.cls].img}" alt=""><span>${esc(p.name)}</span></div>`).join('');
+    if ($('#mates')._html !== html) { $('#mates')._html = html; $('#mates').innerHTML = html; }
   }
 
   // ================= 모험 =================
@@ -389,19 +415,24 @@
   function typeText(el, text, done) {
     clearInterval(typing);
     let i = 0;
-    el.textContent = '';
+    el.innerHTML = '<span></span><span class="ghost"></span>';
+    const [a, b] = el.children;
+    b.textContent = text;
     const finish = () => { clearInterval(typing); typing = null; el.textContent = text; el.onclick = null; done && done(); };
     el.onclick = finish;
     typing = setInterval(() => {
       i += 2;
       if (i % 6 === 0) S('type', { vary: .4, gap: 0 });
-      el.textContent = text.slice(0, i);
+      a.textContent = text.slice(0, i); b.textContent = text.slice(i);
       if (i >= text.length) finish();
     }, 22);
   }
 
   // 결과 r: {gain, gold, msg, trait, icon, good}
+  let stepDone = false;
   function completeStep(r) {
+    if (stepDone) return;
+    stepDone = true;
     r = r || {};
     stopTimers();
     const real = applyGain(r.gain);
@@ -427,7 +458,8 @@
     const good = r.good != null ? r.good : !neg;
     if (Object.keys(real).length || gold) later(() => S(good ? 'gain' : 'wrong', { vol: .7 }), 120);
     if (gold > 0) later(() => S('coin'), 260);
-    const body = $('#q-body');
+    const body = $('#q-right');
+    $('#q-body').classList.add('resolved');
     const box = document.createElement('div');
     box.className = 'result-box';
     box.innerHTML = `${r.msg ? `<div class="result-msg ${good ? '' : 'bad'}">${r.icon ? icon(r.icon, 30) : ''}<span>${esc(r.msg)}</span></div>` : ''}
@@ -435,11 +467,13 @@
       <div class="gain-chips">${chipsHTML(real, gold)}</div>
       <button class="btn big" style="width:100%;margin-top:16px">${me.done ? `${icon('trophy', 30)} 모험 완료!` : '다음으로'}</button>`;
     body.appendChild(box);
-    box.querySelector('button').addEventListener('click', () => {
+    box.querySelector('button').addEventListener('click', e => {
+      if (e.currentTarget.disabled) return;
+      e.currentTarget.disabled = true;
       if (me.done) { S('j_good'); renderDone('wait'); show('v-done'); }
       else renderQuest();
     });
-    later(() => box.scrollIntoView({ behavior: 'smooth', block: 'end' }), 60);
+    later(() => box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
   }
 
   function header(typeKey, title, scene, text, after) {
@@ -447,11 +481,14 @@
     $('#q-num').textContent = `QUEST ${me.step + 1} / ${TOTAL_STEPS}`;
     $('#q-type').innerHTML = `${icon(ti, 22)} ${tl}`;
     $('#q-prog').style.width = (me.step / TOTAL_STEPS * 100) + '%';
+    $('#q-body').className = 'type-' + typeKey;
     $('#q-body').innerHTML = `
-      <div class="scene-wrap"><img class="scene-img" src="assets/scenes/${scene}.jpg" alt=""></div>
-      <div class="quest-title grad-text">${esc(title)}</div>
-      <div class="quest-text" id="q-text"></div>
-      <div id="q-inter"></div>`;
+      <div class="q-left">
+        <div class="scene-wrap"><img class="scene-img" src="assets/scenes/${scene}.jpg" alt=""></div>
+        <div class="quest-title grad-text">${esc(title)}</div>
+        <div class="quest-text" id="q-text"></div>
+      </div>
+      <div class="q-right" id="q-right"><div id="q-inter"></div></div>`;
     window.scrollTo(0, 0);
     typeText($('#q-text'), text, after);
   }
@@ -459,6 +496,7 @@
   function renderQuest() {
     if (phase !== 'quest') return route();
     stopTimers();
+    stepDone = false;
     if (!me.queue) { me.queue = FLOW.slice(); me.used = me.used || []; me.usedR = me.usedR || []; me.gold = me.gold || 0; }
     renderHud();
     const id = me.queue[me.step];
@@ -549,6 +587,7 @@
         <div class="dice-sub">주사위(1~20) + ${STAT_NAME[check.stat]} 보너스 <b>${bonus}</b></div>
         <button class="btn big" id="roll-btn" style="width:100%">${icon('dice', 32)} 주사위 굴리기!</button>
       </div>`);
+    box.classList.add('rolling-check');
     const panel = box.lastElementChild;
     panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('#roll-btn', panel).addEventListener('click', e => {
@@ -932,6 +971,7 @@
     const { nums, sol } = me.m10;
     let tokens = [], sec = 0, done = false;
     function draw() {
+      if (stepDone) return;
       const used = new Set(tokens.filter(t => t.t === 'n').map(t => t.idx));
       box.innerHTML = `<div class="m10-top"><span>${icon('hourglass', 24)} <b id="m10-t">${sec}</b>초</span><span class="muted">목표: <b class="display" style="color:var(--gold);font-size:24px">10</b></span></div>
         <div class="m10-expr" id="m10-expr">${tokens.length ? tokens.map(t => `<span class="${t.t}">${t.v}</span>`).join('') : '<span class="ph">숫자와 기호를 눌러 식을 만드세요</span>'}</div>
@@ -948,6 +988,7 @@
       if (gv) gv.addEventListener('click', () => { done = true; box.innerHTML = `<div class="m10-expr">${esc(sol)} = 10</div>`; completeStep({ gain: { int: 1 }, msg: `정답 예시: ${sol} = 10`, icon: 'lock', good: false }); });
     }
     function check() {
+      if (done) return;
       const usedN = tokens.filter(t => t.t === 'n').length;
       let v = null;
       try { v = evalExpr(tokens); } catch (e) { v = null; }
@@ -985,6 +1026,7 @@
       }
     }
     function draw(flash) {
+      if (done) return;
       box.innerHTML = `<div class="m10-top"><span>${icon('hourglass', 24)} <b id="cs-t">${left}</b>초</span><span>${icon('star', 24)} 맞힌 개수 <b>${score}</b></span></div>
         <div class="cs-card ${flash || ''}"><small>주제: ${cur.cat}</small><div class="cs-pat">${cur.pat.split('').map(c => `<i>${c}</i>`).join('')}</div><div class="cs-hint" id="cs-hint"></div></div>
         <div class="cs-row"><input id="cs-in" type="text" placeholder="정답 입력" autocomplete="off" maxlength="8"><button class="btn" id="cs-go" data-nosfx>입력</button></div>
@@ -993,7 +1035,7 @@
       inp.focus();
       const go = () => {
         const v = inp.value.trim().replace(/\s/g, '');
-        if (!v) return;
+        if (!v || done) return;
         if (cur.accept.includes(v)) { score++; S('right'); S('coin', { delay: .1 }); nextPrompt(); draw('ok'); }
         else { S('wrong'); inp.value = ''; inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake'); }
       };
@@ -1034,6 +1076,7 @@
     inp.focus();
     const norm = s => s.replace(/\s/g, '');
     const add = () => {
+      if (done) return;
       const v = inp.value.trim();
       if (norm(v).length < 2) { S('error'); return; }
       if (ideas.some(x => norm(x) === norm(v))) { S('error'); toast('이미 적은 아이디어예요'); return; }
@@ -1117,6 +1160,7 @@
         <p class="muted center" style="font-size:14px">빈칸 옆 조각을 눌러 밀어요. 오른쪽 작은 그림이 완성본이에요.</p>
         ${sec >= 60 ? `<button class="btn ghost" id="sl-give" style="width:100%">포기하기</button>` : ''}`;
       $$('.stile[data-i]', box).forEach(b => b.addEventListener('click', () => {
+        if (done) return;
         const i = +b.dataset.i, bi = tiles.indexOf(8);
         if (!nb(bi).includes(i)) { S('error', { vol: .4 }); return; }
         [tiles[bi], tiles[i]] = [tiles[i], tiles[bi]];

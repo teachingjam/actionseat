@@ -585,8 +585,10 @@
 
     function loop(now) {
       if (destroyed) return;
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      update(dt);
+      // 느린 컴퓨터에서도 경기가 늘어지지 않도록, 프레임이 밀리면 나눠서 여러 번 계산
+      const dt = Math.min(0.25, Math.max(0, (now - last) / 1000)); last = now;
+      for (let rem = dt; rem > 0 && !destroyed; rem -= 0.05) update(Math.min(0.05, rem));
+      if (destroyed) return;
       // 발소리: 카메라에 가까운 선수 수에 비례해 타닥타닥
       if (started && !destroyed) {
         stepAcc += dt * (slowmo ? 4 : 11) * Math.min(4, runners.filter(r => !r.finished && camera.position.distanceTo(r.posNow) < 40).length);
@@ -604,7 +606,24 @@
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
       H.destroy();
-      try { renderer.dispose(); } catch (e) {}
+      // 그래픽 메모리를 남김없이 돌려줌 (안 하면 경기를 할수록 느려짐)
+      try {
+        const texs = new Set(), mats = new Set(), geos = new Set();
+        scene.traverse(o => {
+          if (o.geometry) geos.add(o.geometry);
+          (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m) mats.add(m); });
+        });
+        [charTex, charTexF, obsTex].forEach(t => Object.values(t).forEach(x => texs.add(x)));
+        [dotTex, shadowTex, crowdImg].forEach(x => texs.add(x));
+        if (scene.background && scene.background.isTexture) texs.add(scene.background);
+        mats.forEach(m => { if (m.map) texs.add(m.map); m.dispose(); });
+        texs.forEach(t => t.dispose());
+        geos.forEach(g => g.dispose());
+        if (sun.shadow.map) sun.shadow.map.dispose();
+        renderer.dispose();
+        renderer.forceContextLoss();
+      } catch (e) { console.warn(e); }
+      parts.length = 0;
     }
 
     // 시작: 그리드 샷 → 카운트다운 → 출발

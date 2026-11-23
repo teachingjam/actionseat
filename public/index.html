@@ -36,14 +36,14 @@
           <div class="panel beam">
             <h2 class="t-section-title"><img class="ico" src="assets/icons/door.png" style="width:40px;height:40px" alt="">새 자리뽑기 게임</h2>
             <p class="help">① 교실 배치 → ② 학생 명단 → ③ (선택) 비밀 조건을 설정한 뒤 방을 만드세요.<br>
-            방을 만들면 <b>발표 화면</b>(메뉴 없는 학생용 화면)이 전체 화면으로 열립니다. 프로젝터에는 발표 화면만 보여 주세요.</p>
+            방을 만들면 <b>발표 화면</b>(메뉴 없는 학생용 화면)이 <b>새 창</b>으로 열립니다. 프로젝터에는 발표 창만 보여 주세요.</p>
             <div id="g-checklist" style="margin:14px 0"></div>
             <button class="btn big" id="btn-create"><img class="ico" src="assets/icons/key.png" style="width:34px;height:34px" alt="">방 만들기</button>
           </div>
           <div class="panel">
             <h3 style="display:flex;align-items:center;gap:6px"><img class="ico" src="assets/icons/megaphone.png" style="width:30px;height:30px" alt="">화면 분리 안내</h3>
-            <p class="help"><b>모니터 1대(복제 화면)</b>: 방을 만들면 발표 화면이 전체 화면으로 떠요. 아래쪽에 마우스를 가져가면 진행 버튼이 나타나요. 비밀 조건 같은 메뉴는 발표 화면에 절대 나오지 않아요.<br><br>
-            <b>모니터 2대(확장 화면)</b>: '발표 창 분리'를 눌러 새 창을 프로젝터 쪽으로 옮기고, 이 콘솔은 선생님 화면에서 조작하세요.</p>
+            <p class="help"><b>모니터 2대(확장 화면)</b>: 새로 열린 발표 창을 프로젝터 쪽으로 옮기고 전체 화면(F11)을 켜세요. 이 콘솔은 선생님 화면에서 조작하세요.<br><br>
+            <b>모니터 1대(복제 화면)</b>: 방을 만든 뒤 '이 창에서 발표'를 누르면 이 창이 발표 화면으로 바뀌어요. 아래쪽에 마우스를 가져가면 진행 버튼이 나타나요. 비밀 조건 같은 메뉴는 발표 화면에 절대 나오지 않아요.</p>
           </div>
         </div>
       </div>
@@ -151,7 +151,7 @@
     <!-- ===== 비밀 조건 ===== -->
     <section id="tab-secret" class="hidden">
       <div class="secret-banner"><img class="ico" src="assets/icons/mask.png" style="width:40px;height:40px" alt=""><span><b>이 화면은 학생들에게 보이지 않게 하세요!</b> 여기 설정은 이 브라우저에만 저장되고, 학생 기기·발표 화면·서버로 전송되지 않습니다.</span></div>
-      <div class="t-grid2">
+      <div class="t-grid2 wide-side">
         <div class="panel">
           <h2 class="t-section-title"><img class="ico" src="assets/icons/lock.png" style="width:40px;height:40px" alt="">비밀 배치 조건</h2>
           <div class="rule-form">
@@ -172,16 +172,14 @@
         <div class="panel">
           <h3>옵션</h3>
           <p class="help" style="margin-bottom:4px"><b>'떨어뜨리기'의 범위</b></p>
-          <label class="row"><input type="radio" name="scope" value="side"> 옆자리(짝)만 안 되게</label>
-          <label class="row"><input type="radio" name="scope" value="cross"> 앞·뒤·옆 모두 안 되게</label>
-          <label class="row"><input type="radio" name="scope" value="all"> 대각선까지 안 되게</label>
-          <hr style="border-color:var(--line)">
-          <label class="row"><input type="checkbox" id="opt-last"> 지난번 짝과 다시 짝 되지 않기</label>
-          <p class="help" id="opt-last-info"></p>
-          <label class="row"><input type="checkbox" id="opt-absent"> 접속 안 한 명단 학생도 '대리 캐릭터'로 자리 배정</label>
-          <label class="row"><input type="checkbox" id="opt-pick"> 1·2·3등 보상: 무작위 후보(5·4·3명) 중에서 짝꿍 고르기</label>
-          <p class="help">떨어뜨리기·짝 만들기·자리 고정·앞/뒷자리 조건이 걸린 학생과 지난번 짝은 후보에 몰래 빠집니다. 짝 만들기 조건이 걸린 1~3등은 고르기를 건너뜁니다. 접속한 학생만으로 후보가 모자라면, 위의 '대리 캐릭터' 옵션을 켰을 때 결석한 명단 학생으로 채웁니다.</p>
-          <hr style="border-color:var(--line)">
+          <label class="opt"><input type="radio" name="scope" value="side"><span>옆자리(짝)만 안 되게</span></label>
+          <label class="opt"><input type="radio" name="scope" value="cross"><span>앞·뒤·옆 모두 안 되게</span></label>
+          <label class="opt"><input type="radio" name="scope" value="all"><span>대각선까지 안 되게</span></label>
+          <hr class="opt-hr">
+          <label class="opt"><input type="checkbox" id="opt-last"><span>지난번 짝과 다시 짝 되지 않기<small id="opt-last-info"></small></span></label>
+          <label class="opt"><input type="checkbox" id="opt-absent"><span>결석한 학생도 자리 배정<small>접속하지 않은 명단 학생은 '대리 캐릭터'로 참가해요. 짝 고르기 후보가 모자랄 때도 채워 줘요.</small></span></label>
+          <label class="opt"><input type="checkbox" id="opt-pick"><span>1·2·3등은 짝꿍 고르기<small>무작위 후보 5·4·3명 중에서 골라요. 비밀 조건이 걸린 학생과 지난번 짝은 후보에서 몰래 빠져요. '짝 만들기'가 걸린 1~3등은 고르기를 건너뛰어요.</small></span></label>
+          <hr class="opt-hr">
           <button class="btn secondary" id="btn-sim" style="width:100%">미리 시뮬레이션</button>
           <p class="help">무작위 능력치로 배정을 한 번 돌려 조건이 모두 지켜지는지 확인해요.</p>
         </div>

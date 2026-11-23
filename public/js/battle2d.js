@@ -325,7 +325,7 @@
       cam.z = lerp(cam.z, zTarget, 0.04);
       cam.x = lerp(cam.x, (minx + maxx) / 2, 0.06); cam.y = lerp(cam.y, (miny + maxy) / 2, 0.06);
       cam.shake *= 0.88;
-      if (!ended && simT >= endT) { ended = true; setTimeout(() => { cleanup(); onDone(); }, 200); }
+      if (!ended && simT >= endT) { ended = true; setTimeout(() => { if (destroyed) return; cleanup(); onDone(); }, 200); }
     }
 
     function draw() {
@@ -346,13 +346,15 @@
       ctx.fillStyle = 'rgba(90,0,60,0.42)'; ctx.fill('evenodd');
       ctx.restore();
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,95,162,.9)'; ctx.lineWidth = 8; ctx.shadowColor = '#ff5fa2'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.ellipse(CX, CY, zone.r, zone.r * 0.62, 0, 0, Math.PI * 2);
       ctx.setLineDash([40, 22]); ctx.lineDashOffset = -simT * 80;
-      ctx.beginPath(); ctx.ellipse(CX, CY, zone.r, zone.r * 0.62, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,95,162,.25)'; ctx.lineWidth = 26; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,95,162,.9)'; ctx.lineWidth = 8; ctx.stroke();
       ctx.restore();
       // 보석
       gems.forEach(g => { if (IMG.fx_gem) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(IMG.fx_gem, g.x - 18, g.y - 18, 36, 36); ctx.restore(); } });
       // 몬스터 + 전투원 (y 정렬)
+      const aliveN = F.reduce((n, f) => n + (f.alive ? 1 : 0), 0);
       const list = monsters.map(m => ({ y: m.y, m })).concat(F.filter(f => f.alive || simT - f.koAt < 1.2).map(f => ({ y: f.y, f })));
       list.sort((a, b) => a.y - b.y);
       list.forEach(o => {
@@ -361,7 +363,7 @@
           const s = 64, bob = Math.sin(simT * 8 + m.ph) * 4;
           ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(m.x, m.y + 4, 22, 8, 0, 0, 7); ctx.fill();
           ctx.drawImage(im, m.x - s / 2, m.y - s + bob, s, s);
-        } else drawFighter(o.f);
+        } else drawFighter(o.f, aliveN);
       });
       // 효과
       fxs.forEach(e => {
@@ -394,7 +396,7 @@
       ctx.restore();
     }
 
-    function drawFighter(f) {
+    function drawFighter(f, aliveN) {
       const im = IMG['run_' + f.p.cls]; if (!im) return;
       const dead = !f.alive;
       const k = dead ? clamp((simT - f.koAt) / 1.2, 0, 1) : 0;
@@ -409,7 +411,7 @@
       if (f.lvFx > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = f.lvFx; ctx.strokeStyle = '#3ee0ff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(f.x, f.y, s * 0.5 * (1.8 - f.lvFx), s * 0.2 * (1.8 - f.lvFx), 0, 0, 7); ctx.stroke(); ctx.restore(); }
       ctx.save();
       ctx.translate(f.x, f.y - bob - (dead ? k * 60 : 0));
-      if (dead) { ctx.globalAlpha = 1 - k; ctx.rotate(k * f.face * 1.4); ctx.filter = 'grayscale(1)'; }
+      if (dead) { ctx.globalAlpha = 1 - k; ctx.rotate(k * f.face * 1.4); }
       ctx.scale(f.face, 1);
       ctx.drawImage(im, -s / 2, -s, s, s);
       if (f.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = f.flash * 0.8; ctx.drawImage(im, -s / 2, -s, s, s); ctx.drawImage(im, -s / 2, -s, s, s); }
@@ -425,19 +427,24 @@
       ctx.font = `${duel ? 30 : 22}px Jua, sans-serif`; ctx.textAlign = 'center';
       ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(10,5,30,.9)'; ctx.strokeText(f.p.name, f.x, by - 8);
       ctx.fillStyle = '#fff'; ctx.fillText(f.p.name, f.x, by - 8);
-      if (F.filter(x => x.alive).length === 1 && IMG.crown) ctx.drawImage(IMG.crown, f.x - 40, by - 110 + Math.sin(simT * 4) * 6, 80, 80);
+      if (aliveN === 1 && IMG.crown) ctx.drawImage(IMG.crown, f.x - 40, by - 110 + Math.sin(simT * 4) * 6, 80, 80);
     }
     function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
     function loop(now) {
       if (destroyed) return;
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      update(dt);
+      // 느린 컴퓨터에서도 경기가 늘어지지 않도록, 프레임이 밀리면 나눠서 여러 번 계산
+      const dt = Math.min(0.25, Math.max(0, (now - last) / 1000)); last = now;
+      for (let rem = dt; rem > 0 && !destroyed; rem -= 0.05) update(Math.min(0.05, rem));
+      if (destroyed) return;
       draw();
       H.tick();
       raf = requestAnimationFrame(loop);
     }
-    function cleanup() { destroyed = true; cancelAnimationFrame(raf); H.destroy(); SFX.crowd(0, 1.5); }
+    function cleanup() {
+      destroyed = true; cancelAnimationFrame(raf); H.destroy(); SFX.crowd(0, 1.5);
+      [monsters, projs, fxs, sparks, floaters, gems].forEach(a => { a.length = 0; });
+    }
 
     FX.loadImages(srcs).then(imgs => {
       if (destroyed) return;

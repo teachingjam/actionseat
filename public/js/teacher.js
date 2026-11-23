@@ -12,7 +12,10 @@
   const S = Object.assign({}, defaults, store(KEY) || {});
   S.opts = Object.assign({}, defaults.opts, S.opts || {});
   if (!S.layout || !Array.isArray(S.layout.desks)) S.layout = presetLayout('pair');
-  function save() { store(KEY, S); }
+  let dead = false; // 다른 탭에서 콘솔을 이어받으면 이 탭은 멈춤
+  function save() { if (!dead) store(KEY, S); }
+  // 내용이 바뀐 경우에만 다시 그림 (계속 다시 그리면 누르는 순간 버튼이 사라져 클릭이 안 먹힘)
+  function setHTML(el, html) { if (el._html === html) return false; el._html = html; el.innerHTML = html; return true; }
 
   // ================= 탭 =================
   $$('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
@@ -300,13 +303,15 @@
 
   // ================= 발표 화면 통신 =================
   const stageBC = new BroadcastChannel('action-seat-stage-v1');
-  let finaleRun = null; // {runId, mode, players}
+  let finaleRun = (S.room && S.room.run) || null; // {runId, mode, players, layout, running} — 새로고침해도 이어지도록 방에 저장
+  function setRun(r) { finaleRun = r; if (S.room) { if (r) S.room.run = r; else delete S.room.run; } }
+  const activeRunId = () => (finaleRun && finaleRun.running ? finaleRun.runId : null);
   function joinUrl() { return S.room ? new URL('play.html?code=' + S.room.code, location.href).href : ''; }
   function stageState() {
     const R = S.room;
     if (!R) return { t: 'state', phase: 'idle' };
     return {
-      t: 'state', phase: R.phase, code: R.code, joinUrl: joinUrl(),
+      t: 'state', phase: R.phase, runId: activeRunId(), code: R.code, joinUrl: joinUrl(),
       players: Object.values(R.students).map(s => ({ name: s.name, cls: s.cls, step: s.step || 0, done: !!s.done, title: s.cls ? GameData.titleOf(s.cls, s.traits) : '' })),
       total: GameData.TOTAL_STEPS, rosterCount: S.roster.length,
       pick: R.pick ? R.pick.pickers.map(p => ({ name: p.name, cls: p.cls, rank: p.rank, n: p.cands.length, done: !!p.choice })) : null,
@@ -321,6 +326,10 @@
   }
   stageBC.onmessage = e => {
     const m = e.data || {};
+    if (dead) return;
+    if (m.t === 'takeover') return standDown(m.id);
+    if (m.t === 'hello' || m.t === 'here') { if (!m.embed) setPopupAlive(true); }
+    if (m.t === 'bye' && !m.embed) setPopupAlive(false);
     if (m.t === 'hello') {
       pushStage(true);
       if (finaleRun && S.room && S.room.phase === 'finale' && finaleRun.running) stageBC.postMessage({ t: 'finale', ...finaleRun });
@@ -329,10 +338,19 @@
   };
 
   // ---------- 발표 모드(같은 화면) & 별도 창 ----------
-  let popup = null;
+  // 발표 화면은 항상 하나만 켜 둠. 둘이 동시에 돌면 결승전이 두 번 실행되어 느려지고 화면이 멈춤.
+  let popup = null, popupAlive = false;
+  function setPopupAlive(v) {
+    if (popupAlive === v) return;
+    popupAlive = v;
+    if (v && inStage()) exitStage();
+    renderGame();
+  }
   function enterStage() {
     const ov = $('#stage-ov'), fr = $('#stage-frame');
-    if (!fr.src) fr.src = 'stage.html?embed=1';
+    stageBC.postMessage({ t: 'closeStage' });
+    popup = null; popupAlive = false;
+    if (!fr.getAttribute('src')) fr.setAttribute('src', 'stage.html?embed=1');
     ov.classList.remove('hidden');
     $('#dock').classList.remove('hidden');
     $('#dock-hot').classList.remove('hidden');
@@ -341,17 +359,26 @@
   }
   function exitStage() {
     $('#stage-ov').classList.add('hidden');
+    $('#stage-frame').removeAttribute('src'); // 숨긴 채로 계속 돌지 않게 완전히 끔
     $('#dock').classList.add('hidden');
     $('#dock-hot').classList.add('hidden');
     try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
     renderGame();
   }
   function openPopup() {
-    popup = window.open('stage.html', 'action-seat-stage', 'width=1280,height=760');
-    if (!popup) return UI.alert('팝업이 차단됐어요. 브라우저 주소창의 팝업 허용을 눌러 주세요.', { icon: 'lock' });
-    if (!$('#stage-ov').classList.contains('hidden')) exitStage();
-    toast('발표 창을 프로젝터 화면으로 옮긴 뒤 F11로 전체 화면을 켜세요', 'megaphone');
+    if (inStage()) exitStage();
+    const w = Math.min(1600, screen.availWidth || 1280), h = Math.min(900, screen.availHeight || 760);
+    // 이미 열려 있으면 새로 고치지 않고 앞으로만 가져옴 (진행 중인 화면이 끊기지 않게)
+    const reuse = popupAlive;
+    popup = window.open(reuse ? '' : 'stage.html', 'action-seat-stage', `popup,width=${w},height=${h},left=0,top=0`);
+    if (!popup) { UI.alert('발표 창(팝업)이 차단됐어요.<br>주소창 오른쪽의 팝업 차단 아이콘에서 <b>항상 허용</b>을 누른 뒤, <b>발표 창 열기</b>를 다시 눌러 주세요.', { icon: 'lock' }); return false; }
+    try { if (reuse && popup.location.href === 'about:blank') popup.location.href = new URL('stage.html', location.href).href; } catch (e) {}
+    try { popup.focus(); } catch (e) {}
+    toast('발표 창을 프로젝터 화면으로 옮기고 전체 화면(F11)을 켜세요', 'megaphone');
+    return true;
   }
+  // 발표 화면이 하나도 없으면 새 창으로 열기 (버튼을 누른 순간에만 호출)
+  function ensureStage() { if (!inStage() && !popupAlive) openPopup(); }
   const inStage = () => !$('#stage-ov').classList.contains('hidden');
   let dockTimer = null;
   function pokeDock() {
@@ -377,8 +404,8 @@
     if (ph === 'result') { A.push(['send', 'phone', '학생에게 전송', 'green']); A.push(['print', 'printer', '인쇄', 'secondary']); A.push(['rematch', 'dice', '다른 종목', 'secondary']); A.push(['finish', 'chest', '저장하고 끝내기', 'danger']); }
     A.push(['sound', SFX.muted ? 'mute' : 'sound', SFX.muted ? '소리 켜기' : '소리 끄기', 'ghost']);
     if (where === 'console') {
-      A.push(['stage', 'megaphone', '발표 모드(전체 화면)', 'secondary']);
-      A.push(['popup', 'door', '발표 창 분리', 'secondary']);
+      A.push(['popup', 'megaphone', popupAlive ? '발표 창 앞으로' : '발표 창 열기', 'secondary']);
+      A.push(['stage', 'door', '이 창에서 발표', 'ghost']);
       if (ph === 'lobby' || ph === 'quest') A.push(['close', 'lock', '방 닫기', 'ghost']);
     } else {
       A.push(['popup', 'door', '창 분리', 'ghost']);
@@ -391,16 +418,26 @@
   }
   function renderDock() {
     if (!inStage()) return;
-    const acts = actionsFor('dock');
-    $('#dock').innerHTML = acts.map(a => btnHTML(a, true)).join('');
-    $$('#dock [data-act]').forEach(b => b.addEventListener('click', () => doAction(b.dataset.act)));
+    setHTML($('#dock'), actionsFor('dock').map(a => btnHTML(a, true)).join(''));
   }
+  ['#dock', '#c-actions'].forEach(sel => $(sel).addEventListener('click', e => {
+    const b = e.target.closest('[data-act]');
+    if (b) doAction(b.dataset.act);
+  }));
+  let acting = false; // 확인창이 떠 있는 동안 같은 버튼이 또 눌려 두 번 실행되는 것 방지
   async function doAction(act) {
+    if (acting || dead) return;
+    acting = true;
+    try { await runAction(act); } finally { acting = false; }
+  }
+  async function runAction(act) {
     const R = S.room;
+    if (!R && act !== 'sound') return;
     switch (act) {
       case 'start': {
         const n = Object.values(R.students).filter(s => s.cls).length;
         if (!n) return toast('아직 캐릭터를 만든 학생이 없어요');
+        ensureStage();
         setPhase('quest'); toast('모험이 시작되었습니다!', 'swords'); break;
       }
       case 'endQuest': {
@@ -408,8 +445,14 @@
         if (notDone && !(await UI.confirm(`아직 ${notDone}명이 모험 중이에요.<br>지금까지의 능력치로 결승전을 시작할까요?`, { icon: 'flag', ok: '결승전 시작' }))) return;
         setPhase('finale'); break;
       }
-      case 'race': case 'battle': startFinale(act); break;
-      case 'skip': stageBC.postMessage({ t: 'skip' }); break;
+      case 'race': case 'battle': ensureStage(); startFinale(act); break;
+      case 'skip': {
+        const id = activeRunId();
+        stageBC.postMessage({ t: 'skip' });
+        // 발표 창이 닫혔거나 최소화되어 응답이 없으면 콘솔에서 바로 다음 단계로 넘김
+        setTimeout(() => { if (id && activeRunId() === id) onFinaleDone(id); }, 6000);
+        break;
+      }
       case 'pickEnd': {
         const left = R.pick ? R.pick.pickers.filter(p => !p.choice).length : 0;
         if (left && !(await UI.confirm(`아직 ${left}명이 짝을 고르지 않았어요.<br>고르지 않은 사람은 보상 없이 결과를 발표할까요?`, { icon: 'flag', ok: '결과 발표' }))) return;
@@ -419,7 +462,7 @@
       case 'print': printResult(); break;
       case 'rematch':
         if (!(await UI.confirm('다른 종목으로 결승전을 다시 할까요?<br>결과가 새로 정해져요.', { icon: 'dice', ok: '다시 하기' }))) return;
-        R.result = null; R.race = null; R.pick = null; R.pairs = null; R.pickNote = ''; finaleRun = null; setPhase('finale'); break;
+        R.result = null; R.race = null; R.pick = null; R.pairs = null; R.pickNote = ''; R.resultSent = false; setRun(null); setPhase('finale'); break;
       case 'finish': finish(); break;
       case 'sound': SFX.toggle(); stageBC.postMessage({ t: 'mute', on: SFX.muted }); renderDock(); renderGame(); break;
       case 'stage': enterStage(); break;
@@ -446,11 +489,16 @@
   }
 
   function onMessage(m) {
-    if (!S.room) return;
+    if (!S.room || dead) return;
     const R = S.room;
     if (m.type === 'hello') {
       Net.send('welcome', { to: m.token, phase: R.phase, roster: S.roster, claimed: claimedNames(), players: playersPublic(), known: !!R.students[m.token] });
       if (R.phase === 'pick' && R.pick) { const pk = R.pick.pickers.find(p => p.id === m.token); if (pk) setTimeout(() => sendPick(pk), 300); }
+      // 결과를 보낸 뒤 다시 접속한 학생(화면이 꺼졌던 태블릿 등)에게도 결과를 다시 보냄
+      if (R.phase === 'result' && R.resultSent) {
+        const p = (R.result || []).find(x => x.id === m.token);
+        if (p) setTimeout(() => Net.send('result', { to: m.token, results: { [p.id]: { rank: p.rank, seat: p.seat } } }), 300);
+      }
     } else if (m.type === 'pickChoice') {
       onPickChoice(m);
     } else if (m.type === 'claim') {
@@ -502,9 +550,10 @@
       toast('실시간 연결 실패: ' + e.message, 'lock');
     }
   }
-  setInterval(() => { if (S.room && Net.connected) broadcastRoom(true); }, 10000);
+  setInterval(() => { if (!dead && S.room && Net.connected) broadcastRoom(true); }, 10000);
 
-  $('#btn-create').addEventListener('click', async () => {
+  $('#btn-create').addEventListener('click', () => {
+    if (S.room || dead) return; // 두 번 눌러 방이 두 개 생기는 것 방지
     const seats = seatsOf(S.layout);
     if (!seats.length) { toast('먼저 교실 배치에서 책상을 놓아 주세요', 'desk'); return showTab('layout'); }
     if (S.roster.length > seats.length) return UI.alert(`책상(${seats.length}개)이 학생(${S.roster.length}명)보다 적어요. 교실 배치에서 책상을 추가해 주세요.`, { icon: 'desk' });
@@ -512,12 +561,14 @@
     S.room = { code, phase: 'lobby', students: {}, created: Date.now(), result: null, mode: null };
     finaleRun = null;
     save();
+    openPopup(); // 발표 화면은 새 창으로 (팝업은 클릭한 순간에만 열 수 있어서 가장 먼저)
     openChannel();
     renderGame(); pushStage(true);
-    enterStage();
   });
   function closeRoom() {
+    if (!S.room) return;
     Net.send('closed', {});
+    Net.leave(800);
     S.room = null; finaleRun = null; save();
     pushStage(true);
     if (inStage()) exitStage();
@@ -548,20 +599,21 @@
       [Net.connected ? 'bolt' : 'lock', connText || (Net.connected ? '실시간 연결됨' : '연결 안 됨')],
       ['flag', PH[R.phase]],
       ['group', `참가 ${list.length}명${S.roster.length ? ` / ${S.roster.length}` : ''}`],
-      ['trophy', `퀘스트 완료 ${done}명`]
+      ['trophy', `퀘스트 완료 ${done}명`],
+      [popupAlive || inStage() ? 'megaphone' : 'lock', popupAlive ? '발표 창 켜짐' : inStage() ? '이 창에서 발표 중' : '발표 창 꺼짐']
     ];
     if (R.phase === 'result' && R.pickNote) chips.push(['heart', R.pickNote]);
     if (R.phase === 'pick' && R.pick) R.pick.pickers.forEach(p => chips.push([p.choice ? 'heart' : 'hourglass', `${p.rank}등 ${p.name}: ${p.choice ? '선택 완료' : `후보 ${p.cands.length}명 중 고르는 중`}`]));
-    $('#c-status').innerHTML = chips.map(([ic, t]) => `<span class="chip">${icon(ic, 22)}${esc(t)}</span>`).join('');
-    $('#c-actions').innerHTML = actionsFor('console').map(a => btnHTML(a, false)).join('');
-    $$('#c-actions [data-act]').forEach(b => b.addEventListener('click', () => doAction(b.dataset.act)));
+    setHTML($('#c-status'), chips.map(([ic, t]) => `<span class="chip">${icon(ic, 22)}${esc(t)}</span>`).join(''));
+    setHTML($('#c-actions'), actionsFor('console').map(a => btnHTML(a, false)).join(''));
     const total = GameData.TOTAL_STEPS;
-    $('#c-players').innerHTML = list.map(([tk, s]) => `
+    const changed = setHTML($('#c-players'), list.map(([tk, s]) => `
       <div class="mini-item" data-tk="${tk}" title="클릭하면 내보내기">
         ${s.cls ? `<img class="avatar sm" src="${CLASSES[s.cls].img}" alt="">` : icon('thought', 36)}
         <span>${esc(s.name)}</span><div class="pbar"><i style="width:${Math.round((s.step || 0) / total * 100)}%"></i></div>
-      </div>`).join('') || '<p class="muted">아직 아무도 들어오지 않았어요.</p>';
-    $$('#c-players .mini-item').forEach(p => p.addEventListener('click', async () => {
+      </div>`).join('') || '<p class="muted">아직 아무도 들어오지 않았어요.</p>');
+    if (changed) $$('#c-players .mini-item').forEach(p => p.addEventListener('click', async () => {
+      if (S.room !== R) return;
       const s = R.students[p.dataset.tk];
       if (!s || !(await UI.confirm(`'${esc(s.name)}' 학생을 내보낼까요?<br>(다시 입장할 수 있어요)`, { icon: 'group', ok: '내보내기', danger: true }))) return;
       Net.send('kick', { to: p.dataset.tk });
@@ -601,16 +653,17 @@
     const players = res.order.map(o => ({ id: o.id, name: byId[o.id].name, cls: byId[o.id].cls, stats: byId[o.id].stats, rank: o.rank, seat: o.seat, real: byId[o.id].real }));
     R.mode = mode;
     R.pendingResult = players.map(p => ({ id: p.id, name: p.name, cls: p.cls, rank: p.rank, seat: p.seat, real: p.real }));
+    setRun({ runId: uid(), mode, players, layout: S.layout, running: true });
     save();
-    finaleRun = { runId: uid(), mode, players, layout: S.layout, running: true };
     stageBC.postMessage({ t: 'finale', ...finaleRun });
     renderDock(); renderGame();
-    if (!inStage() && !popup) toast('발표 화면에서 결승전이 시작돼요', 'megaphone');
+    if (!inStage() && !popupAlive) toast('발표 화면에서 결승전이 시작돼요', 'megaphone');
   }
   function onFinaleDone(runId) {
     const R = S.room;
-    if (!R || !finaleRun || finaleRun.runId !== runId || !finaleRun.running) return;
-    finaleRun.running = false;
+    // 이미 처리한 결승전이면 지금 상태만 다시 알려 줌 (발표 화면이 마지막 장면에 멈추지 않게)
+    if (!R || !finaleRun || finaleRun.runId !== runId || !finaleRun.running) { pushStage(true); return; }
+    setRun(null);
     R.race = R.pendingResult; delete R.pendingResult;
     if (S.opts.pickReward !== false && startPick()) return;
     R.result = R.race;
@@ -658,7 +711,7 @@
       // 건너뛴 이유는 교사 콘솔에만 표시
       R.pickNote = !realTop ? '1~3등 중 접속한 학생이 없어 짝 고르기를 건너뛰었어요'
         : R.pickSkipped.length === realTop ? '짝 만들기 조건이 걸려 있어 짝 고르기를 건너뛰었어요'
-        : `후보로 뽑을 학생이 부족해 짝 고르기를 건너뛰었어요${S.opts.includeAbsent ? '' : " (비밀 조건 > 옵션 '대리 캐릭터'를 켜면 결석한 명단 학생도 후보가 돼요)"}`;
+        : `후보로 뽑을 학생이 부족해 짝 고르기를 건너뛰었어요${S.opts.includeAbsent ? '' : " (비밀 조건 > 옵션 '결석한 학생도 자리 배정'을 켜면 결석한 학생도 후보가 돼요)"}`;
       return false;
     }
     R.pick = { id: uid(), pickers };
@@ -789,6 +842,7 @@
     const results = {};
     S.room.result.filter(p => p.real).forEach(p => { results[p.id] = { rank: p.rank, seat: p.seat }; });
     Net.send('result', { results });
+    S.room.resultSent = true; save();
     toast('학생들에게 결과를 보냈어요', 'phone');
   }
   async function finish() {
@@ -806,7 +860,8 @@
     S.history.unshift({ date: `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`, mode: S.room.mode, seatMap, partners });
     S.history = S.history.slice(0, 20);
     sendResults();
-    setTimeout(closeRoom, 400);
+    const done = S.room;
+    setTimeout(() => { if (S.room === done) closeRoom(); }, 400);
     toast('저장했어요!', 'chest');
   }
 
@@ -826,7 +881,7 @@
     const picked = new Set($$('.reset-list input:checked').map(i => i.dataset.rk));
     if (!ok || !picked.size) return;
     if (picked.has('room') && S.room) {
-      try { Net.send('closed', {}); } catch (e) {}
+      try { Net.send('closed', {}); Net.leave(800); } catch (e) {}
       S.room = null; finaleRun = null;
       if (inStage()) exitStage();
       pushStage(true);
@@ -845,7 +900,38 @@
   });
 
   // ================= 시작 =================
-  renderGame();
-  // 방이 열린 상태에서 새로고침해도 콘솔(비밀 메뉴)이 프로젝터에 노출되지 않도록 바로 발표 모드로
-  if (S.room) { openChannel(); pushStage(true); enterStage(); }
+  // 교사 콘솔은 한 브라우저에서 한 탭만: 두 탭이 같은 방을 함께 진행하면 모든 게 두 번 실행됨
+  const tabId = uid();
+  let releaseLock = null;
+  function blockOverlay(msg, btn) {
+    if ($('#tab-block')) return;
+    const ov = document.createElement('div');
+    ov.id = 'tab-block'; ov.className = 'modal-ov';
+    ov.innerHTML = `<div class="modal"><div class="modal-ic">${icon('lock', 72)}</div><p>${msg}</p><div class="modal-btns"><button class="btn">${btn}</button></div></div>`;
+    document.body.appendChild(ov);
+    $('button', ov).addEventListener('click', () => { stageBC.postMessage({ t: 'takeover', id: tabId }); setTimeout(() => location.reload(), 400); });
+  }
+  function standDown(id) {
+    if (id === tabId) return;
+    dead = true;
+    Net.leave();
+    if (inStage()) exitStage();
+    if (releaseLock) releaseLock();
+    blockOverlay('교사 콘솔을 다른 탭에서 이어받았어요.', '이 탭에서 다시 사용');
+  }
+  function boot() {
+    renderGame();
+    stageBC.postMessage({ t: 'who' }); // 열려 있는 발표 창이 있는지 확인
+    if (S.room) { openChannel(); pushStage(true); }
+  }
+  function claimTab(retry) {
+    if (!navigator.locks) return boot();
+    navigator.locks.request('action-seat-console', { ifAvailable: true }, lock => {
+      if (lock) { boot(); return new Promise(res => { releaseLock = res; }); }
+      if (retry) { setTimeout(() => claimTab(retry - 1), 400); return; }
+      dead = true;
+      blockOverlay('교사 콘솔이 이미 다른 탭에서 열려 있어요.<br>두 탭에서 함께 진행하면 게임이 두 번 실행돼요.', '이 탭에서 사용');
+    }).catch(() => boot());
+  }
+  claimTab(3);
 })();

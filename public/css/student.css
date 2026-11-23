@@ -1,0 +1,187 @@
+/* ============ 학생 화면 전용: 공통 보정 + 태블릿 가로 배치 ============ */
+.student-app .panel { backdrop-filter: none; }
+.sfx-btn.fs { right: 66px; color: var(--text); font-size: 24px; line-height: 1; }
+.student-app .hud { margin-right: 106px; }
+.intro-top { margin-right: 110px; }
+.quest-text .ghost { visibility: hidden; }
+.in-l, .in-r { display: flex; flex-direction: column; gap: 12px; }
+/* 주사위를 굴릴 때·결과가 나온 뒤에는 고르지 않은 선택지와 다 쓴 버튼을 접음 */
+.rolling-check .choice-btn:not(.picked),
+.resolved .choice-btn:not(.picked):not(.right):not(.wrong),
+.resolved .uses-list, .resolved .cs-row, .resolved #cs-pass, .resolved #us-done, .resolved .tap-field,
+.resolved #m10-ok, .resolved #m10-give, .resolved .m10-nums, .resolved .m10-ops, .resolved #tm-hit { display: none; }
+
+/* =========================================================
+   태블릿 가로 — 스크롤 없이 한 화면에
+   ========================================================= */
+@media (orientation: landscape) and (min-width: 760px) {
+  body { overflow: hidden; }
+  .student-app { max-width: none; width: 100%; height: 100vh; height: 100dvh; min-height: 0; padding: 10px 16px; display: flex; flex-direction: column; }
+  .student-app > section { flex: 1; min-height: 0; overflow: auto; }
+  .student-app .page-title { margin: 4px 110px 10px; font-size: clamp(22px, 4.4vh, 34px); }
+  .sfx-btn { top: 10px; }
+
+  /* 참여 코드 */
+  #v-join { display: grid; grid-template-columns: 1.1fr 1fr; gap: 4vw; align-items: center; padding: 0 4vw; }
+  #v-join .title-hero { padding: 0; }
+  #v-join .title-hero h1 { font-size: clamp(48px, 12vh, 96px); }
+  #v-join .title-hero h1 .l1 { font-size: .55em; }
+  #v-join .title-hero .sub { font-size: 18px; }
+  #v-join .panel { margin-top: 0 !important; }
+  #v-join p.muted { margin-top: 12px !important; }
+
+  /* 이름 */
+  #v-name { display: flex; flex-direction: column; }
+  #v-name > .panel { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin: 0 auto; }
+  .name-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); max-height: none; gap: 10px; min-height: 0; }
+  .name-btn { padding: clamp(8px, 2.2vh, 18px) 6px; font-size: clamp(17px, 3vh, 22px); }
+
+  /* 게임 설명 */
+  #v-intro { display: flex; flex-direction: column; overflow: hidden; }
+  .intro-top { margin: 0 110px 8px 0; min-height: 46px; }
+  .intro-stage { flex: 1; min-height: 0; }
+  .intro-slide { height: 100%; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; padding: clamp(10px, 2.6vh, 26px) 28px; overflow: auto; }
+  .in-l, .in-r { justify-content: center; gap: clamp(8px, 2vh, 18px); min-width: 0; min-height: 0; }
+  .in-title { font-size: clamp(24px, 4.6vh, 36px); }
+  .in-text { font-size: clamp(16px, 2.9vh, 21px); line-height: 1.6; word-break: keep-all; }
+  .in-list { font-size: clamp(15px, 2.7vh, 19px); line-height: 1.7; word-break: keep-all; }
+  .in-note { font-size: clamp(15px, 2.6vh, 18px); word-break: keep-all; }
+  .in-hero, .in-scene { aspect-ratio: auto; height: clamp(150px, 42vh, 420px); width: 100%; }
+  .in-hero-t { font-size: clamp(36px, 8vh, 60px); }
+  .in-runners { bottom: 3%; }
+  .in-runners img { width: auto; height: 20vh; }
+  .in-classes { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(100%, 54vh); margin: 0 auto; gap: 8px 18px; }
+  .in-classes div { font-size: 14px; }
+  .in-stats { gap: clamp(4px, 1.2vh, 10px); }
+  .in-stats div { padding: clamp(4px, 1.3vh, 12px) 14px; grid-template-columns: 36px 60px 1fr; }
+  .in-stats span { font-size: clamp(14px, 2.5vh, 17px); }
+  .in-icons div { padding: clamp(6px, 1.8vh, 16px) 4px; font-size: 15px; }
+  .fl-step { font-size: clamp(12px, 2.3vh, 16px); }
+  .in-podium > div { width: 120px; }
+  .in-podium span { font-size: 14px; }
+  .intro-nav { margin-top: 8px; }
+  .intro-nav .btn { min-width: 150px; }
+
+  /* 직업 */
+  #v-class { display: flex; flex-direction: column; justify-content: center; }
+  #v-class > p { margin: -4px 0 8px !important; }
+  .class-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 8px 2px; }
+  .class-card img.portrait { aspect-ratio: auto; height: clamp(100px, 34vh, 320px); object-position: 50% 20%; }
+  .class-card .cname { font-size: clamp(18px, 3.2vh, 24px); margin-top: 4px; }
+  .class-card .cdesc { word-break: keep-all; min-height: 2.6em; line-height: 1.3; }
+  .class-card .cstats { flex-wrap: wrap; }
+  #btn-class { margin-top: 10px !important; padding: clamp(10px, 2vh, 18px); flex: none; }
+
+  /* 대기실 */
+  #v-wait { display: grid; grid-template: auto minmax(0, 1fr) / minmax(260px, 1fr) 2fr; gap: 0 18px; overflow: hidden; }
+  #v-wait .page-title { grid-column: 1 / 3; }
+  #v-wait .char-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #v-wait .panel { margin-top: 0 !important; min-height: 0; overflow: auto; }
+  .char-card .cc-img { width: clamp(110px, 28vh, 220px); height: clamp(110px, 28vh, 220px); }
+
+  /* 모험 */
+  #v-quest { display: grid; grid-template: "hud head" auto "hud prog" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr); column-gap: 16px; overflow: hidden; }
+  #v-quest .hud { grid-area: hud; margin: 0; padding: 6px 12px; }
+  #v-quest .hud .hud-stats { margin-left: 14px; gap: 10px; font-size: 17px; flex-wrap: nowrap; }
+  #v-quest .quest-head { grid-area: head; margin-right: 108px; align-self: end; }
+  #v-quest .progress { grid-area: prog; margin: 4px 108px 0 0; align-self: start; }
+  #q-body { grid-area: body; min-height: 0; margin-top: 10px; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 5fr) minmax(0, 6fr); gap: 18px; }
+  .q-left { display: flex; flex-direction: column; min-height: 0; }
+  .q-left .scene-wrap { flex: 1 1 0; min-height: 60px; }
+  .q-left .scene-img { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 18px; }
+  .q-left .quest-title { flex: none; font-size: clamp(20px, 4.2vh, 32px); margin: clamp(6px, 1.4vh, 14px) 0; }
+  .q-left .quest-text { flex: none; min-height: 0; max-height: 50%; overflow: auto; font-size: clamp(16px, 2.9vh, 21px); line-height: 1.55; padding: clamp(8px, 1.8vh, 16px) 16px; word-break: keep-all; }
+  .q-right { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+  #q-inter { flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 2px 4px; }
+  #q-inter { scrollbar-width: none; }
+  #q-inter::-webkit-scrollbar { display: none; }
+  #q-inter > :first-child { margin-top: 0; }
+  .quest-title { font-family: var(--display); }
+  .result-box { flex: none; margin-top: 8px; }
+  .result-box .result-msg { margin-top: 6px; font-size: clamp(17px, 3vh, 23px); word-break: keep-all; }
+  .result-box .btn { margin-top: clamp(8px, 1.8vh, 16px) !important; }
+  .q-right .btn.big { padding: clamp(10px, 2vh, 18px); font-size: clamp(19px, 3.4vh, 26px); }
+
+  .choices { gap: clamp(6px, 1.5vh, 12px); margin-top: 0; }
+  .choice-btn { padding: clamp(8px, 1.9vh, 18px) 18px; font-size: clamp(16px, 3vh, 22px); word-break: keep-all; }
+  .choice-btn:hover { transform: none; }
+  .choice-btn .ctags { margin-top: 4px; }
+  .path-grid { gap: clamp(6px, 1.6vh, 14px); }
+  .path-card { padding: clamp(8px, 1.9vh, 18px) 16px; grid-template-columns: 68px 1fr; }
+  .path-card b { font-size: clamp(18px, 3.2vh, 24px); }
+  .path-card small { font-size: 16px; }
+  .dice-panel { margin-top: 10px; padding: clamp(8px, 1.6vh, 16px); }
+  .d20 { width: clamp(70px, 17vh, 140px); height: clamp(70px, 17vh, 140px); font-size: clamp(30px, 7vh, 56px); margin: clamp(6px, 1.4vh, 14px) auto; }
+  .resolved .dice-panel { padding: 8px; }
+  .resolved .dice-head { display: none; }
+  .resolved .d20 { width: clamp(54px, 11vh, 90px); height: clamp(54px, 11vh, 90px); font-size: clamp(24px, 5vh, 40px); margin: 2px auto 6px; }
+  .resolved .dice-sub { margin-bottom: 0; }
+  .lv-row { grid-template-columns: 100px 1fr 48px 48px 60px; margin: clamp(4px, 1.2vh, 10px) 0; }
+  .lv-row button { width: 48px; height: clamp(38px, 7vh, 48px); }
+  .points-left { margin: 0 0 4px; }
+  .timing-track { height: clamp(50px, 11vh, 84px); margin: 8px 0 14px; border-radius: 42px; }
+  .tap-count { font-size: clamp(30px, 7vh, 52px); line-height: 1.1; }
+  .tap-field { height: calc(100vh - 220px); height: calc(100dvh - 220px); min-height: 180px; margin: 6px 0; }
+  .chest { width: clamp(90px, 20vh, 150px); height: clamp(90px, 20vh, 150px); }
+  .chest-row { gap: 26px; }
+  .shop-gold { margin: 0 0 8px; }
+  .shop-list { grid-template-columns: 1fr 1fr; }
+  .shop-item { padding: 8px 10px; gap: 8px; }
+  .d6s i { width: clamp(46px, 9vh, 64px); height: clamp(46px, 9vh, 64px); }
+  .fortune-row { gap: 10px; }
+  .m10-top { margin: 0 0 6px; }
+  .m10-expr { min-height: clamp(48px, 10vh, 74px); padding: 6px 10px; }
+  .m10-nums { margin: 8px 0; }
+  .m10-n { height: clamp(50px, 12vh, 84px); }
+  .m10-ops { grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .m10-o { height: clamp(46px, 9vh, 62px); padding: 0; }
+  /* 글자 입력 문제: 화면 키보드가 올라와도 보이도록 위쪽에 붙임 */
+  .type-chosung .q-right, .type-uses .q-right { justify-content: flex-start; }
+  .cs-card { padding: clamp(8px, 1.8vh, 18px); }
+  .cs-pat { margin: 6px 0; }
+  .cs-row { margin-top: 8px; }
+  .uses-obj { margin-top: 0; padding: 8px; margin-bottom: 8px; }
+  .uses-list { max-height: 26vh; overflow: auto; margin: 8px 0; }
+  .mem-grid { width: min(100%, calc(100vh - 170px)); width: min(100%, calc(100dvh - 170px)); margin: 6px auto 0; }
+  .slide-grid { width: min(74%, calc(100vh - 260px)); width: min(74%, calc(100dvh - 260px)); }
+  .slide-ref { width: 22%; height: auto; aspect-ratio: 1; }
+  .resolved .mem-grid { width: min(100%, calc(100vh - 360px)); width: min(100%, calc(100dvh - 360px)); min-width: 180px; }
+  .resolved .slide-grid { width: min(60%, calc(100vh - 400px)); width: min(60%, calc(100dvh - 400px)); min-width: 150px; }
+  .resolved .fortune-row { width: 70%; margin: 0 auto 6px; }
+
+  /* 완료 · 결승 대기 */
+  #v-done { display: grid; grid-template: auto minmax(0, 1fr) / 2fr 1fr; gap: 0 18px; overflow: hidden; }
+  #v-done .page-title { grid-column: 1 / 3; }
+  #v-done .char-card { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; align-items: center; padding: 16px 24px; }
+  #v-done .char-card .cc-img { width: clamp(100px, 24vh, 180px); height: clamp(100px, 24vh, 180px); }
+  #v-done .char-card .cc-name { font-size: clamp(22px, 4.4vh, 32px); }
+  .radar { width: 100%; height: auto; max-height: 60vh; margin: 0; }
+  #v-done #done-msg { margin-top: 0 !important; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+  /* 짝꿍 고르기 */
+  #v-pick { display: flex; flex-direction: column; justify-content: center; }
+  .pick-panel { margin-top: 0; }
+  .pick-head { margin-bottom: 18px; }
+  .pick-grid { display: flex; justify-content: center; gap: 14px; }
+  .pick-card { flex: 1 1 0; max-width: 230px; padding: 18px 12px; gap: 14px; }
+  .pick-card .pk-img { width: clamp(74px, 18vh, 130px); height: clamp(74px, 18vh, 130px); }
+  .pick-card .pk-name { font-size: 28px; }
+
+  /* 결과 */
+  #v-result { display: flex; flex-direction: column; justify-content: center; }
+  #v-result .char-card { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 20px; max-width: 900px; width: 100%; margin: 0 auto; }
+  .big-rank { font-size: clamp(80px, 24vh, 170px); }
+  #v-msg { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  #v-msg .panel { min-width: 420px; }
+}
+
+/* 글씨가 잘 보이도록 배경 그림을 어둡게, 카드 바탕을 진하게 */
+.bg-title .aurora { background: linear-gradient(180deg, rgba(11,9,32,.62), rgba(11,9,32,.92) 62%), url('../assets/title_bg.jpg') center top / cover no-repeat; }
+.student-app .panel, .choice-btn, .path-card, .shop-item, .pick-card { background-color: rgba(22,14,56,.72); }
+.choice-btn .ctag { font-size: 14px; }
+.shop-item .si-t small { font-size: 14px; color: #cfc6f2; }
+.student-app .muted, .in-stats span, .path-card small { color: #c9c0ee; }
+@media (orientation: landscape) and (min-width: 760px) {
+  .m10-ops { margin-top: 12px; }
+  .in-stats b { font-size: 19px; }
+}

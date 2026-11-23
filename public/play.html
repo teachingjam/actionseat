@@ -2,15 +2,17 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>액션 자리뽑기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/student.css">
 </head>
 <body class="bg-title">
 <div class="aurora"><div class="grid"></div></div>
 <div id="toast-wrap"></div>
+<button class="sfx-btn fs hidden" id="fs-btn" data-nosfx title="전체 화면">⛶</button>
 <button class="sfx-btn" data-sfx-toggle data-nosfx title="소리 켜기/끄기"><img src="assets/icons/sound.png" alt="소리"></button>
 <div class="student-app" id="app">
 
@@ -21,13 +23,13 @@
       <h1><span class="l1">액션</span><span class="grad-text">자리뽑기</span></h1>
       <p class="sub">모험을 떠나 캐릭터를 키우고, 최고의 자리를 차지하라!</p>
     </div>
-    <div class="panel beam" style="margin-top:26px">
+    <div class="join-side"><div class="panel beam" style="margin-top:26px">
       <h2 class="center" style="display:flex;align-items:center;justify-content:center;gap:6px"><img class="ico" src="assets/icons/key.png" style="width:30px;height:30px" alt="">참여 코드</h2>
       <input id="code" class="code-input" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off">
       <button class="btn big" id="btn-join" style="width:100%;margin-top:16px">입장하기</button>
       <p id="join-err" class="center" style="color:var(--red);min-height:1.4em"></p>
     </div>
-    <p class="center muted" style="margin-top:30px;font-size:14px">선생님이신가요? <a href="index.html">교사용 화면 열기 →</a></p>
+    <p class="center muted" style="margin-top:30px;font-size:14px">선생님이신가요? <a href="index.html">교사용 화면 열기 →</a></p></div>
   </section>
 
   <!-- 2. 이름 선택 -->
@@ -98,9 +100,9 @@
   <section id="v-done" class="hidden">
     <div class="page-title" id="done-head">모험 완료!</div>
     <div class="char-card panel">
-      <img id="done-img" class="cc-img" alt="">
+      <div class="cc-who"><img id="done-img" class="cc-img" alt="">
       <div class="cc-name" id="done-name"></div>
-      <div class="cc-title" id="done-title"></div>
+      <div class="cc-title" id="done-title"></div></div>
       <svg class="radar" id="done-radar" viewBox="0 0 260 270"></svg>
       <div class="stat-list" id="done-stats" style="text-align:left"></div>
     </div>
@@ -119,12 +121,13 @@
   <section id="v-result" class="hidden">
     <div class="page-title">최종 결과</div>
     <div class="char-card panel beam">
-      <img id="res-medal" class="ico pop-in" alt="" style="width:90px;height:90px">
-      <div class="big-rank grad-text pop-in" id="res-rank"></div>
-      <img id="res-img" class="cc-img" alt="" style="width:130px;height:130px;margin-top:8px">
+      <div class="res-l"><img id="res-medal" class="ico pop-in" alt="" style="width:90px;height:90px">
+      <div class="big-rank grad-text pop-in" id="res-rank"></div></div>
+      <div class="res-r"><img id="res-img" class="cc-img" alt="" style="width:130px;height:130px;margin-top:8px">
       <div class="cc-name" id="res-name"></div>
       <div class="big-seat" id="res-seat"></div>
       <p class="muted" id="res-sub"></p>
+      <button class="btn small ghost hidden" id="res-again" onclick="location.href='play.html'">새 게임 참여하기</button></div>
     </div>
   </section>
 

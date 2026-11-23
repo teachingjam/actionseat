@@ -120,11 +120,13 @@
     crowdNodes.g.gain.linearRampToValueAtTime(Math.max(0, level) * .22, t + (ramp != null ? ramp : .6));
   }
   function cheer() {
-    if (!crowdNodes) crowd(.4, .1);
+    if (muted || !ensure()) return;
+    if (!crowdNodes) { crowd(.02, .1); crowdLevel = 0; }
     if (!crowdNodes) return;
     const t = ctx.currentTime, g = crowdNodes.g.gain, cur = g.value;
     g.cancelScheduledValues(t); g.setValueAtTime(cur, t);
-    g.linearRampToValueAtTime(.3, t + .25); g.linearRampToValueAtTime(Math.max(cur, .08), t + 2.4);
+    // 환호가 끝나면 원래 함성 크기로 돌아감 (예전엔 조용한 화면에서도 웅성거림이 계속 남았음)
+    g.linearRampToValueAtTime(.3, t + .25); g.linearRampToValueAtTime(Math.max(0, crowdLevel) * .22, t + 2.4);
   }
   function stopAll() { crowd(0, .3); }
 

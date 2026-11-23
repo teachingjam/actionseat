@@ -10,8 +10,19 @@
   let running = null;      // 실행 중인 결승전 {runId, ctrl}
   let lastResultKey = '';
   let revealed = false;
+  let resultRun = 0;
 
-  function showView(id) { $$('.sv').forEach(s => s.classList.toggle('hidden', s.id !== id)); }
+  function showView(id) {
+    $$('.sv').forEach(s => s.classList.toggle('hidden', s.id !== id));
+    document.body.classList.toggle('in-finale', id === 'sv-finale'); // 결승전 동안 배경 애니메이션을 꺼서 렉을 줄임
+    if (id !== 'sv-finale') $('#finale-root').innerHTML = '';         // 끝난 결승전 화면(캔버스)을 남겨 두지 않음
+    if (id !== 'sv-result') resultRun++;                              // 자리 발표 연출 중단
+  }
+  function stopFinale() {
+    if (running && running.ctrl && running.ctrl.destroy) running.ctrl.destroy();
+    running = null;
+    revealed = false;
+  }
 
   bc.onmessage = e => {
     const m = e.data || {};
@@ -19,8 +30,26 @@
     else if (m.t === 'finale') runFinale(m);
     else if (m.t === 'skip') { if (running && running.ctrl && running.ctrl.skip) running.ctrl.skip(); }
     else if (m.t === 'mute') SFX.setMuted(m.on);
+    else if (m.t === 'who') bc.postMessage({ t: 'here', embed });
+    else if (m.t === 'closeStage' && !embed) window.close();
   };
-  bc.postMessage({ t: 'hello' });
+  bc.postMessage({ t: 'hello', embed });
+  window.addEventListener('pagehide', () => bc.postMessage({ t: 'bye', embed }));
+
+  // 별도 창: 마우스를 움직이면 나타나는 전체 화면 버튼
+  if (!embed && document.fullscreenEnabled) {
+    const fs = document.createElement('button');
+    fs.className = 'fs-btn';
+    fs.dataset.nosfx = '';
+    fs.textContent = '⛶ 전체 화면';
+    fs.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); });
+    document.body.appendChild(fs);
+    let ft = null;
+    const poke = () => { fs.classList.add('on'); clearTimeout(ft); ft = setTimeout(() => fs.classList.remove('on'), 2200); };
+    window.addEventListener('mousemove', poke);
+    document.addEventListener('fullscreenchange', () => { fs.textContent = document.fullscreenElement ? '⛶ 전체 화면 끝내기' : '⛶ 전체 화면'; });
+    poke();
+  }
 
   // 소리: 브라우저가 소리를 막아 두었으면 화면을 한 번 클릭해 달라는 안내를 띄움
   const sndHint = document.createElement('button');
@@ -36,9 +65,13 @@
   SFX.preload();
 
   function onState(s) {
+    if (running) {
+      // 교사 콘솔이 아직 이 결승전을 진행 중이면 화면 유지. 이미 끝난 결승전이면(다른 창이 먼저 끝냈거나 건너뛰기) 바로 정리하고 다음 화면으로
+      if (s.runId === running.runId) return;
+      stopFinale();
+    }
     const prevPhase = state.phase;
     state = s;
-    if (running) return; // 결승전 중에는 화면 유지
     if (s.phase === 'idle' || !s.phase) { showView('sv-idle'); return; }
     if (prevPhase !== s.phase) {
       checkSound();
@@ -148,8 +181,9 @@
     showView('sv-finale');
     const root = $('#finale-root');
     root.innerHTML = '';
-    running = { runId: m.runId, players: m.players, layout: m.layout };
+    const mine = running = { runId: m.runId, players: m.players, layout: m.layout };
     const done = () => {
+      if (running !== mine) return; // 이미 정리된 결승전
       running = null;
       revealed = false;
       state = Object.assign({}, state, { phase: 'finale' });
@@ -181,6 +215,7 @@
     return html;
   }
   function renderResult(animate) {
+    const run = ++resultRun; // 다시 그리면 이전 발표 연출은 멈춤
     const res = (state.result || []).slice().sort((a, b) => a.rank - b.rank);
     const box = $('#r-classroom');
     const full = {}; res.forEach(p => { full[p.seat] = p; });
@@ -201,9 +236,10 @@
     const gap = Math.max(110, 2600 / Math.max(1, res.length));
     SFX.crowd(.25, 1);
     const step = () => {
+      if (run !== resultRun) { SFX.crowd(0, 1); return; }
       if (i >= res.length) {
         $$('.pd-hide').forEach((el, j) => setTimeout(() => { el.classList.remove('pd-hide'); SFX.play('levelup', { rate: .9 + j * .12, vol: .6 }); }, j * 250));
-        setTimeout(() => { SFX.play('j_win'); SFX.cheer(); }, 800);
+        setTimeout(() => { if (run === resultRun) { SFX.play('j_win'); SFX.cheer(); } }, 800);
         setTimeout(() => SFX.crowd(0, 3), 4000);
         return;
       }

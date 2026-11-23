@@ -22,10 +22,11 @@
         });
       }
       if (channel) { try { await client.removeChannel(channel); } catch (e) {} }
-      channel = client.channel(cfg.CHANNEL_PREFIX + code, {
+      const ch = channel = client.channel(cfg.CHANNEL_PREFIX + code, {
         config: { broadcast: { self: false, ack: false } }
       });
       channel.on('broadcast', { event: 'msg' }, ({ payload }) => {
+        if (ch !== channel) return; // 이미 나간 방의 메시지는 무시
         try { onMessage(payload); } catch (e) { console.error(e); }
       });
       return new Promise((resolve, reject) => {
@@ -34,6 +35,7 @@
           if (!settled) { settled = true; reject(new Error('연결 시간이 초과되었어요.')); }
         }, 7000);
         channel.subscribe((status) => {
+          if (ch !== channel) return;
           Net.connected = status === 'SUBSCRIBED';
           if (onStatus) onStatus(status);
           if (status === 'SUBSCRIBED' && !settled) {
@@ -43,6 +45,15 @@
           }
         });
       });
+    },
+    // 지금 방에서 나가기 (wait: 마지막 메시지가 나갈 시간을 주고 나감)
+    leave(wait) {
+      const ch = channel;
+      if (!ch) return;
+      setTimeout(() => {
+        if (ch === channel) { channel = null; Net.connected = false; }
+        try { client.removeChannel(ch); } catch (e) {}
+      }, wait || 0);
     },
     send(type, data) {
       if (!channel) return;
